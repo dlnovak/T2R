@@ -511,7 +511,11 @@ async function loadPeerJS(){
   for(const s of srcs){try{await loadScript(s);if(window.Peer)return}catch(e){}}
   throw new Error('peerjs');
 }
-const peerOpts=()=>Object.assign({debug:0},window.PEER_OPTS||{});
+const ICE=[
+  {urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:global.stun.twilio.com:3478'},
+  {urls:['turn:eu-0.turn.peerjs.com:3478','turn:us-0.turn.peerjs.com:3478'],username:'peerjs',credential:'peerjsp'},
+  {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}];
+const peerOpts=()=>Object.assign({debug:0,config:{iceServers:ICE}},window.PEER_OPTS||{});
 function peerHost(code){
   return new Promise((resolve,reject)=>{
     const peer=new Peer(PEER_PREFIX+code,peerOpts());
@@ -546,12 +550,15 @@ function peerHost(code){
 function peerJoin(code,onDown){
   return new Promise((resolve,reject)=>{
     const peer=new Peer(peerOpts());const hostId=PEER_PREFIX+code;
-    const topicH={};let myPres={tok:TOK},conn=null,ready=false,dead=false,retryT=null;
+    const topicH={};let myPres={tok:TOK},conn=null,ready=false,dead=false,retryT=null,tries=0,openT=null;
     const deliver=m=>{if(m&&m.t==='emit')(topicH[m.topic]||[]).forEach(h=>{try{h({topic:m.topic,data:m.data,peer:hostId,by:null,isMe:false,sameTab:false,kind:'viewer',guest:false})}catch(e){}})};
     const connect=()=>{
       if(dead)return;
-      conn=peer.connect(hostId,{reliable:true});
-      conn.on('open',()=>{conn.send({t:'pres',presence:myPres});if(!ready){ready=true;resolve(api)}else onDown&&onDown(false)});
+      const c=conn=peer.connect(hostId,{reliable:true});tries++;
+      clearTimeout(openT);
+      if(!ready)openT=setTimeout(()=>{if(ready||dead||c.open)return;try{c.close()}catch(e){}
+        if(tries<3){C.slow=true;renderSetup();connect()}else{dead=true;try{peer.destroy()}catch(e){}reject({type:'ice-timeout'})}},14000);
+      c.on('open',()=>{clearTimeout(openT);if(c!==conn)return;c.send({t:'pres',presence:myPres});if(!ready){ready=true;C.slow=false;resolve(api)}else onDown&&onDown(false)});
       conn.on('data',deliver);
       conn.on('close',()=>{if(dead)return;onDown&&onDown(true);clearTimeout(retryT);retryT=setTimeout(connect,2500)});
     };
@@ -690,7 +697,7 @@ async function joinTable(code){
   try{
     if(TRANSPORT==='peer')NR=await peerJoin(code,down=>{C.down=down;if(G)render();else renderSetup()});
     else NR=await ROOM.join('ttr-'+code);
-  }catch(e){joining=false;MODE='local';setupMode='join';C.joinErr=(e&&e.type==='peer-unavailable')?`No open table with code ${code.toUpperCase()}. Check the code on the big screen.`:'Could not join that table. Check your internet connection and try again.';renderSetup();return}
+  }catch(e){joining=false;MODE='local';setupMode='join';C.joinErr=(e&&e.type==='peer-unavailable')?`No open table with code ${code.toUpperCase()}. Check the code on the host’s screen.`:(e&&e.type==='ice-timeout')?'Found the table, but couldn’t link to the host’s computer. Try: both on the same Wi-Fi, turn off any VPN, and use Chrome, Edge or Safari. Then try again.':'Could not join that table. Check your internet connection and try again.';C.slow=false;renderSetup();return}
   joining=false;
   if(TRANSPORT==='peer'){try{const last=JSON.parse(localStorage.getItem('t2r-seat')||'null');if(last&&last.code===code){C.seat=last.seat;NR.presence({seat:last.seat,act:null}).catch(()=>{})}}catch(e){}}
   MODE='client';C.code=code;if(TRANSPORT!=='peer'||C.seat==null)C.seat=null;C.pub=null;C.priv=null;C.wait=false;C.shownResults=false;C.lastFx=null;
@@ -758,7 +765,7 @@ function renderSetup(){
     <div class="startRow"><button class="btn big" data-act="hostStart" ${waiting?'disabled':''}>${waiting?`Waiting for ${waiting} player${waiting>1?'s':''}`:'Start game'}</button><button class="btn ghost" data-act="cancel">Close table</button></div>`;
   }else if(MODE==='client'){
     const d=C.pub;
-    if(!d)h=`<h3>Joining table ${esc((C.code||'').toUpperCase())}…</h3><div class="muted">Waiting for the host’s screen to answer.</div><div class="startRow"><button class="btn ghost" data-act="cancel">Back</button></div>`;
+    if(!d)h=`<h3>Joining table ${esc((C.code||'').toUpperCase())}…</h3><div class="muted">${C.slow?'Still connecting — this can take a few extra seconds on some networks…':'Connecting to the host’s computer…'}</div><div class="startRow"><button class="btn ghost" data-act="cancel">Back</button></div>`;
     else{
       const mine=seatedHere();
       h=`<h3>Table ${esc(d.code.toUpperCase())} — who are you?</h3>
