@@ -50,6 +50,7 @@ h1,h2,h3{margin:0}
 .seat input:focus{outline:none;border-color:#1d2843;background:#fff}
 .seg{display:flex;background:#f1ead9;border-radius:9px;padding:3px}
 .seg button{border:0;background:transparent;padding:7px 11px;border-radius:7px;font-size:13px;font-weight:700;color:var(--muted)}
+.seg3 button{padding:7px 9px}
 .seg button.on{background:#1d2843;color:#fff3d6;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .startRow{display:flex;gap:8px;margin-top:16px}
 .btn.big{flex:1;padding:14px 18px;font-size:17px;border-radius:12px;box-shadow:0 4px 0 #7a2620}
@@ -59,7 +60,7 @@ h1,h2,h3{margin:0}
 .fact b{display:block;font-family:Rye,Georgia,serif;font-weight:400;font-size:22px;color:var(--accent)}
 .fact span{font-size:12px;color:var(--muted)}
 .note{font-size:12.5px;color:var(--muted);margin-top:16px;text-align:center}
-@media(max-width:480px){.seg button{padding:7px 7px;font-size:12px}.seat{grid-template-columns:28px 1fr auto;gap:7px;padding:7px 6px 7px 8px}.car{width:28px}.seat input{padding:8px 7px}}
+@media(max-width:480px){.seat:has(.seg3){grid-template-columns:28px 1fr}.seat .seg3{grid-column:1/-1}.seg3 button{flex:1}.seg button{padding:7px 7px;font-size:12px}.seat{grid-template-columns:28px 1fr auto;gap:7px;padding:7px 6px 7px 8px}.car{width:28px}.seat input{padding:8px 7px}}
 
 .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:16px;background:#f1ead9;padding:5px;border-radius:14px}
 .modes button{border:0;background:transparent;border-radius:10px;padding:9px 6px;line-height:1.15;color:var(--muted)}
@@ -422,7 +423,7 @@ const cur=()=>G.players[G.cur];
 function viewer(){
   if(!G)return -1;
   if(MODE==='client')return C.seat==null?-1:C.seat;
-  if(MODE==='host')return -1;
+  if(MODE==='host')return H.local;
   const hs=G.players.map((p,i)=>p.human?i:-1).filter(i=>i>=0);
   if(hs.length===1)return hs[0];
   if(hs.length===0)return -1;
@@ -434,7 +435,7 @@ const handCount=h=>h?Object.values(h).reduce((a,b)=>a+b,0):0;
 const cardCount=p=>p.cards!=null?p.cards:handCount(p.hand);
 const tixCount=p=>p.tixN!=null?p.tixN:p.tickets.length;
 function log(msg,pi){G.log.unshift({msg,pi:pi!=null?pi:null,hex:pi!=null?G.players[pi].hex:'#ccc'});if(G.log.length>60)G.log.pop()}
-function note(pi,text){if(MODE==='host'){H.notes[pi]={id:++H.noteN,text}}else if(MODE==='local')toast(text)}
+function note(pi,text){if(MODE==='host'&&pi===H.local){toast(text)}else if(MODE==='host'){H.notes[pi]={id:++H.noteN,text}}else if(MODE==='local')toast(text)}
 
 function makeDeck(){const d=[];COLORS.forEach(c=>{for(let i=0;i<12;i++)d.push(c)});for(let i=0;i<14;i++)d.push('loco');return shuffle(d)}
 function drawFromDeck(){
@@ -497,7 +498,7 @@ function longest(pi){
 
 // ================= NETWORK =================
 let ROOM=null,USER=null,NR=null,netState='loading'; // loading | ready | none
-const H={code:null,seats:[],bind:{},lastSeq:{},notes:{},noteN:0,bcT:null,timer:null,unsub:null};
+const H={local:-1,code:null,seats:[],bind:{},lastSeq:{},notes:{},noteN:0,bcT:null,timer:null,unsub:null};
 const C={code:null,seat:null,pub:null,priv:null,seq:0,wait:false,waitT:null,lastNote:0,lastFx:null,shownResults:false,unsubs:[]};
 // ----- PeerJS transport (used when the page runs outside Claude, e.g. GitHub Pages) -----
 let TRANSPORT='none';
@@ -595,7 +596,8 @@ async function openTable(){
   if(TRANSPORT==='claude'){let can=false;try{can=USER?await USER.canEdit():false}catch(e){}
     if(!can){toast('Only the owner or an editor of this page can host a table.');return}}
   H.code=randCode();H.bind={};H.lastSeq={};H.notes={};
-  H.seats=seatCfg.slice(0,setupN).map((s,i)=>({name:(s.name||'').trim()||(s.human?PCOL[i].n+' player':'Computer '+i),human:s.human}));
+  H.seats=seatCfg.slice(0,setupN).map((s,i)=>({name:(s.name||'').trim()||(s.human?PCOL[i].n+' player':'Computer '+i),human:s.human,here:!!(s.human&&s.here)}));
+  H.local=H.seats.findIndex(x=>x.here);
   try{
     if(TRANSPORT==='peer'){let tries=0;for(;;){try{NR=await peerHost(H.code);break}catch(e){if(e&&e.type==='unavailable-id'&&tries++<4){H.code=randCode();continue}throw e}}}
     else NR=await ROOM.join('ttr-'+H.code);
@@ -616,7 +618,7 @@ function onHostPeers(){
   for(const p of peers){
     if(p.isMe||p.kind!=='viewer')continue;
     const pr=p.presence||{},seat=pr.seat;
-    if(typeof seat==='number'&&H.seats[seat]&&H.seats[seat].human){
+    if(typeof seat==='number'&&H.seats[seat]&&H.seats[seat].human&&!H.seats[seat].here){
       const b=H.bind[seat];
       if(!b||(b.peer!==p.peer&&b.by&&b.by===p.by)){
         // one seat per peer
@@ -646,7 +648,7 @@ function applyRemote(pi,a){
   if(!ok)note(pi,'That move isn’t allowed right now.');
 }
 function pubState(){
-  const seats=H.seats.map((s,i)=>({n:s.name,h:s.human?1:0,t:H.bind[i]?H.bind[i].peer:null}));
+  const seats=H.seats.map((s,i)=>({n:s.name,h:s.human?1:0,x:s.here?1:0,t:s.here?'host':(H.bind[i]?H.bind[i].peer:null)}));
   if(!G)return{ph:'lobby',code:H.code,seats};
   const d={ph:G.phase,ov:G.over?1:0,code:H.code,seats,
     pl:G.players.map(p=>({n:p.name,h:p.human?1:0,s:p.score,tr:p.trains,cd:handCount(p.hand),tk:p.tickets.length})),
@@ -669,12 +671,14 @@ function broadcast(){
 }
 function scheduleBroadcast(){if(MODE!=='host')return;clearTimeout(H.bcT);H.bcT=setTimeout(broadcast,60)}
 function hostStart(){
-  const need=H.seats.map((s,i)=>s.human&&!H.bind[i]?s.name:null).filter(Boolean);
+  const need=H.seats.map((s,i)=>s.human&&!s.here&&!H.bind[i]?s.name:null).filter(Boolean);
   if(need.length){toast(`Waiting for ${need.join(', ')} to join.`);return}
   newGame(H.seats.map(s=>({name:s.name,human:s.human})));
   advertise();
 }
 function seatOnline(i){return MODE!=='host'||!!H.bind[i]}
+const isRemote=i=>MODE==='host'&&!!H.seats[i]&&H.seats[i].human&&!H.seats[i].here;
+const bigScreen=()=>MODE==='host'&&H.local<0;
 
 // ----- client -----
 let joining=false;
@@ -727,14 +731,17 @@ function leaveTable(){
 }
 
 // ================= SETUP =================
-function seatRows(phoneLabels){
-  return seatCfg.slice(0,setupN).map((s,i)=>`<div class="seat" style="--pc:${PCOL[i].hex}"><div class="car" title="${PCOL[i].n} trains"></div>
+function seatRows(host){
+  return seatCfg.slice(0,setupN).map((s,i)=>{
+    const seg=host?`<button type="button" data-i="${i}" data-ty="here" class="${s.human&&s.here?'on':''}">This computer</button><button type="button" data-i="${i}" data-ty="online" class="${s.human&&!s.here?'on':''}">Online</button><button type="button" data-i="${i}" data-ty="cpu" class="${!s.human?'on':''}">Computer</button>`
+      :`<button type="button" data-i="${i}" data-h="1" class="${s.human?'on':''}">Person</button><button type="button" data-i="${i}" data-h="0" class="${!s.human?'on':''}">Computer</button>`;
+    return`<div class="seat" style="--pc:${PCOL[i].hex}"><div class="car" title="${PCOL[i].n} trains"></div>
     <input data-i="${i}" class="nm" type="text" value="${esc(s.name)}" maxlength="16" placeholder="${PCOL[i].n} player" aria-label="Player ${i+1} name" autocomplete="off">
-    <div class="seg" role="group" aria-label="Player ${i+1} type"><button type="button" data-i="${i}" data-h="1" class="${s.human?'on':''}">${phoneLabels?'Phone':'Person'}</button><button type="button" data-i="${i}" data-h="0" class="${!s.human?'on':''}">Computer</button></div></div>`).join('');
+    <div class="seg${host?' seg3':''}" role="group" aria-label="Player ${i+1} type">${seg}</div></div>`}).join('');
 }
 function countRow(){return`<div class="count">${[2,3,4,5].map(n=>`<button class="${n===setupN?'on':''}" data-n="${n}"><b>${n}</b><span>players</span></button>`).join('')}</div>`}
 function modeTabs(){
-  const t=[['local','This device','Pass one screen around'],['host','Host a table','Board here, cards on phones'],['join','Join a table','Use your phone as your hand']];
+  const t=[['local','This device','Pass one screen around'],['host','Host a table','Others join online'],['join','Join a table','Play from your own screen']];
   return`<div class="modes">${t.map(([k,a,b])=>`<button data-mode="${k}" class="${setupMode===k?'on':''}"><b>${a}</b><span>${b}</span></button>`).join('')}</div>`;
 }
 function netNote(){
@@ -745,9 +752,9 @@ function netNote(){
 function renderSetup(){
   const B=$('setupBody');if(!B)return;let h='';
   if(MODE==='host'&&!G){
-    const waiting=H.seats.filter((s,i)=>s.human&&!H.bind[i]).length;
-    h=`<div class="lobbyHead"><div><h3 style="margin:0 0 4px">Your table is open</h3><div class="muted" style="font-size:14px">${TRANSPORT==='peer'?`On each phone: scan the QR code, or open <b>${esc(location.host+location.pathname)}</b> → <b>Join a table</b> → enter the code → pick your name.`:'On each phone: open this same page in Claude → <b>Join a table</b> → pick your name.'}</div></div><div class="codeBox"><div class="code">${H.code.toUpperCase()}</div>${TRANSPORT==='peer'?'<div id="qr" class="qr"></div>':''}</div></div>
-    <div class="lobbySeats">${H.seats.map((s,i)=>{const on=!s.human||H.bind[i];return`<div class="seat" style="--pc:${PCOL[i].hex}"><div class="car"></div><div class="lname">${esc(s.name)}</div><span class="pill ${on?'ok':''}">${!s.human?'Computer':H.bind[i]?'Phone connected':'Waiting to join…'}</span></div>`}).join('')}</div>
+    const waiting=H.seats.filter((s,i)=>s.human&&!s.here&&!H.bind[i]).length;
+    h=`<div class="lobbyHead"><div><h3 style="margin:0 0 4px">Your table is open</h3><div class="muted" style="font-size:14px">${TRANSPORT==='peer'?`On each other device: scan the QR code, or open <b>${esc(location.host+location.pathname)}</b> → <b>Join a table</b> → enter the code → pick your name.`:'On each other device: open this same page in Claude → <b>Join a table</b> → pick your name.'}</div></div><div class="codeBox"><div class="code">${H.code.toUpperCase()}</div>${TRANSPORT==='peer'?'<div id="qr" class="qr"></div>':''}</div></div>
+    <div class="lobbySeats">${H.seats.map((s,i)=>{const on=!s.human||s.here||H.bind[i];return`<div class="seat" style="--pc:${PCOL[i].hex}"><div class="car"></div><div class="lname">${esc(s.name)}</div><span class="pill ${on?'ok':''}">${!s.human?'Computer':s.here?'This computer':H.bind[i]?'Connected':'Waiting to join…'}</span></div>`}).join('')}</div>
     <div class="startRow"><button class="btn big" data-act="hostStart" ${waiting?'disabled':''}>${waiting?`Waiting for ${waiting} player${waiting>1?'s':''}`:'Start game'}</button><button class="btn ghost" data-act="cancel">Close table</button></div>`;
   }else if(MODE==='client'){
     const d=C.pub;
@@ -755,7 +762,7 @@ function renderSetup(){
     else{
       const mine=seatedHere();
       h=`<h3>Table ${esc(d.code.toUpperCase())} — who are you?</h3>
-      <div class="lobbySeats">${d.seats.map((s,i)=>{if(!s.h)return`<div class="seat" style="--pc:${PCOL[i].hex}"><div class="car"></div><div class="lname">${esc(s.n)}</div><span class="pill">Computer</span></div>`;
+      <div class="lobbySeats">${d.seats.map((s,i)=>{if(s.x)return`<div class="seat" style="--pc:${PCOL[i].hex}"><div class="car"></div><div class="lname">${esc(s.n)}</div><span class="pill">Host</span></div>`;if(!s.h)return`<div class="seat" style="--pc:${PCOL[i].hex}"><div class="car"></div><div class="lname">${esc(s.n)}</div><span class="pill">Computer</span></div>`;
         const me=C.seat===i&&s.t===myPeer(),taken=s.t&&!me;
         return`<div class="seat" style="--pc:${PCOL[i].hex}"><div class="car"></div><div class="lname">${esc(s.n)}</div>${me?'<span class="pill ok">You</span>':taken?'<span class="pill">Taken</span>':`<button class="btn small" data-seat="${i}">${C.seat===i?'Joining…':'This is me'}</button>`}</div>`}).join('')}</div>
       <div class="muted" style="margin-top:10px;font-size:14px">${mine?(d.ph==='lobby'?'You’re seated. Waiting for the host to start the game…':'Rejoining the game…'):'Tap your name to take your seat.'}</div>
@@ -768,11 +775,11 @@ function renderSetup(){
       h+=`<h3>How many players?</h3>${countRow()}<h3>Who’s riding?</h3>${seatRows(false)}
       <div class="startRow"><button class="btn big" data-act="start">Start game</button><button class="btn ghost" data-act="rules">How to play</button></div>`;
     }else if(setupMode==='host'){
-      h+=`<p class="hint2">This screen shows the board, scores and log for everyone. Each person plays their cards and tickets from their own phone or tablet.</p>${netNote()}
+      h+=`<p class="hint2">Everyone sees the same board and plays their own cards from their own screen: a computer, laptop, tablet or phone. Set your seat to <b>This computer</b> to play here; set friends to <b>Online</b>.</p>${netNote()}
       <h3>How many players?</h3>${countRow()}<h3>Who’s riding?</h3>${seatRows(true)}
       <div class="startRow"><button class="btn big" data-act="open" ${netState!=='ready'?'disabled':''}>Open the table</button><button class="btn ghost" data-act="rules">How to play</button></div>`;
     }else{
-      h+=`<p class="hint2">Pick the table the host opened. Your phone becomes your hand: cards, tickets and moves.</p>${netNote()}`;
+      h+=`<p class="hint2">Enter the table the host opened. You’ll see the full board with your own cards and tickets.</p>${netNote()}`;
       if(netState==='ready'&&TRANSPORT==='peer'){
         h+=`<form class="joinForm" id="joinForm"><input id="joinCode" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CODE" value="${esc((C.code||URLCODE||'').toUpperCase())}" aria-label="Table code"><button class="btn big" type="submit">Join</button></form>${C.joinErr?`<div class="netnote warn" style="margin-top:10px">${esc(C.joinErr)}</div>`:''}<div class="muted" style="font-size:13px;margin-top:10px">The 4-letter code is on the big screen. You can also scan its QR code with your camera.</div>`;
       }else if(netState==='ready'){
@@ -801,9 +808,16 @@ $('setupBody').addEventListener('click',e=>{
   const t=e.target;let b;
   if(b=t.closest('[data-mode]')){setupMode=b.dataset.mode;
     if(setupMode==='host'&&seatCfg[0].name==='You')seatCfg[0].name='Player 1';
+    if(setupMode==='host'&&!seatCfg.slice(0,setupN).some(x=>x.human&&x.here)){const k=seatCfg.slice(0,setupN).findIndex(x=>x.human);if(k>=0)seatCfg[k].here=true}
     if(setupMode==='local'&&seatCfg[0].name==='Player 1')seatCfg[0].name='You';
     renderSetup();return}
   if(b=t.closest('[data-n]')){setupN=+b.dataset.n;renderSetup();return}
+  if(b=t.closest('[data-ty]')){const i=+b.dataset.i,ty=b.dataset.ty,c=seatCfg[i],wasCpu=!c.human;
+    if(ty==='here')seatCfg.forEach(x=>x.here=false);
+    c.human=ty!=='cpu';c.here=ty==='here';
+    if(c.human&&wasCpu&&/^Computer \d+$/.test(c.name))c.name='Player '+(i+1);
+    else if(!c.human&&/^(Player \d|You)$/.test(c.name))c.name='Computer '+i;
+    renderSetup();return}
   if(b=t.closest('[data-h]')){const i=+b.dataset.i,h=b.dataset.h==='1';if(seatCfg[i].human===h)return;seatCfg[i].human=h;
     if(h&&/^Computer \d+$/.test(seatCfg[i].name))seatCfg[i].name=i===0&&setupMode==='local'?'You':'Player '+(i+1);
     else if(!h&&/^(Player \d|You)$/.test(seatCfg[i].name))seatCfg[i].name='Computer '+i;
@@ -1117,7 +1131,7 @@ function routeSheet(ri){
   const v=viewer();const mine=isMyTurn();
   let body='',opts=null;
   if(G.owner[ri]>=0)body=`<p>Claimed by <b>${esc(G.players[G.owner[ri]].name)}</b>.</p>`;
-  else if(MODE==='host')body=`<p class="muted">Players claim routes from their phones.</p>`;
+  else if(bigScreen())body=`<p class="muted">Players claim routes from their own devices.</p>`;
   else if(!mine)body=`<p class="muted">${G.over?'The game is over.':'You can claim routes on your turn.'}</p>`;
   else if(G.drawn>0)body=`<p class="muted">You’ve started drawing cards this turn — finish by drawing one more.</p>`;
   else{const c=claimCheck(v,r);
@@ -1152,7 +1166,7 @@ function showRules(){
   <h4>Route points</h4><p>1 → 1 · 2 → 2 · 3 → 4 · 4 → 7 · 5 → 10 · 6 → 15</p>
   <h4>Double routes</h4><p>One player can never own both. With 2–3 players only one side can be used.</p>
   <h4>Game end</h4><p>When someone finishes a turn with 0–2 trains, everyone (including them) gets one final turn. Then tickets are scored (+ if complete, − if not) and the longest path earns 10 points.</p>
-  <h4>Playing on phones</h4><p>On the big screen choose <b>Host a table</b>. Everyone else opens this same page on their phone, chooses <b>Join a table</b> and taps their name.</p>
+  <h4>Playing on separate devices</h4><p>The host chooses <b>Host a table</b> and sets their own seat to This computer. Everyone else opens this same page on their own computer or phone, chooses <b>Join a table</b> and taps their name.</p>
   </div><div class="row"><button class="btn" id="ruX">Got it</button></div>`,()=>{$('ruX').onclick=closeModal},true);
 }
 $('rulesBtn').onclick=showRules;
@@ -1236,17 +1250,17 @@ function render(){
   if(key!==pickKey){pickKey=key;pickSel=new Set()}
   // top bar
   $('tableTag').innerHTML=MODE==='host'?`Table <b>${H.code.toUpperCase()}</b>`:MODE==='client'&&C.code?`Table <b>${esc(C.code.toUpperCase())}</b> · you are <b style="color:${PCOL[C.seat].hex}">${esc(G.players[C.seat].name)}</b>`:'';
-  $('game').classList.toggle('client',MODE==='client');$('game').classList.toggle('host',MODE==='host');$('handCard').hidden=MODE==='host';$('fsBtn').hidden=MODE!=='host'||!document.documentElement.requestFullscreen;$('fsBtn').textContent=document.fullscreenElement?'Exit full screen':'Full screen';$('mapHint').textContent=MODE==='host'?'Players move on their phones · tap a route or city for details':'Tap a route to claim it · tap a city to list its routes';
+  $('game').classList.toggle('client',MODE==='client');$('game').classList.toggle('host',bigScreen());$('handCard').hidden=bigScreen();$('fsBtn').hidden=!bigScreen()||!document.documentElement.requestFullscreen;$('fsBtn').textContent=document.fullscreenElement?'Exit full screen':'Full screen';$('mapHint').textContent=bigScreen()?'Players move on their own devices · tap a route or city for details':'Tap a route to claim it · tap a city to list its routes';
   $('newBtn').textContent=MODE==='client'?'Leave':MODE==='host'?'Close table':'New game';
   // players
-  $('players').innerHTML=G.players.map((p,i)=>{const off=MODE==='host'&&p.human&&!H.bind[i];
-    return`<div class="pchip ${i===G.cur&&!G.over?'cur':''} ${off?'off':''}"><div class="nm"><span class="dot" style="background:${p.hex}"></span>${esc(p.name)}${p.human?(MODE==='host'?` <span class="muted" style="font-weight:500;font-size:11px">${off?'OFFLINE':'PHONE'}</span>`:''):' <span class="muted" style="font-weight:500;font-size:11px">CPU</span>'}</div>
-    <div class="sc">${p.score} <span class="muted" style="font-size:12px;font-weight:600">pts</span></div><div class="st">${p.trains} trains · ${cardCount(p)} cards · ${tixCount(p)} tix</div></div>`}).join('');
+  $('players').innerHTML=G.players.map((p,i)=>{const off=isRemote(i)&&!H.bind[i];
+    return`<div class="pchip ${i===G.cur&&!G.over?'cur':''} ${off?'off':''}"><div class="nm"><span class="dot" style="background:${p.hex}"></span>${esc(p.name)}${p.human?(isRemote(i)?` <span class="muted" style="font-weight:500;font-size:11px">${off?'OFFLINE':'ONLINE'}</span>`:''):' <span class="muted" style="font-weight:500;font-size:11px">CPU</span>'}</div>
+    <div class="sc">${p.score} <span class="muted" style="font-size:12px;font-weight:600">pts</span></div><div class="st">${p.trains} train${p.trains===1?'':'s'} · ${cardCount(p)} card${cardCount(p)===1?'':'s'} · ${tixCount(p)} tix</div></div>`}).join('');
   // status
   const p=cur();let msg='',acts='';
   const waitingPick=Object.keys(G.picks).map(Number).filter(pi=>pi!==v);
   if(G.over)msg=`Game over<small>${esc(winText(G.results||{win:[]}))}</small>`;
-  else if(MODE==='client'&&C.down)msg='Reconnecting to the big screen…<small>Keep this page open.</small>';
+  else if(MODE==='client'&&C.down)msg='Reconnecting to the host…<small>Keep this page open.</small>';
   else if(MODE==='client'&&C.wait)msg='Sending your move…';
   else if(G.phase==='init')msg=`Choosing starting tickets…<small>${waitingPick.length?'Waiting for '+waitingPick.map(pi=>esc(G.players[pi].name)).join(', '):''}</small>`;
   else if(mine){
@@ -1256,7 +1270,7 @@ function render(){
   }else if(G.picks[G.cur])msg=`${esc(p.name)} is choosing tickets…`;
   else if(p.human){
     msg=`Waiting for ${esc(p.name)}…`;
-    if(MODE==='host')msg+=H.bind[G.cur]?`<small>${G.drawn?'Drawing a second card on their phone.':'Making a move on their phone.'}</small>`:`<small>${esc(p.name)}’s phone is disconnected. Reopen the page on it and choose Join a table.</small>`;
+    if(isRemote(G.cur))msg+=H.bind[G.cur]?`<small>${G.drawn?'Drawing a second card.':'Making a move on their screen.'}</small>`:`<small>${esc(p.name)} is disconnected. They can reopen the page and choose Join a table.</small>`;
   }
   else msg=`${esc(p.name)} is thinking…<small>${G.log[0]?esc(G.log[0].msg):''}</small>`;
   if(G.finalLeft!==null&&!G.over)msg+=`<small><b>Final round:</b> ${G.finalLeft} turn${G.finalLeft>1?'s':''} left.</small>`;
@@ -1272,13 +1286,13 @@ function render(){
   $('market').querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>takeFace(+b.dataset.f));
   $('deckBtn').onclick=takeDeck;
   // hand + tickets
-  $('tixCard').hidden=MODE==='host';
-  if(MODE==='host'){
+  $('tixCard').hidden=bigScreen();
+  if(bigScreen()){
     $('handTitle').textContent='At the table';
-    $('hand').innerHTML=`<div class="tableList">${G.players.map((q,i)=>`<div class="trow"><span class="dot" style="background:${q.hex}"></span><b>${esc(q.name)}</b><span class="pill ${!q.human||H.bind[i]?'ok':''}">${!q.human?'Computer':H.bind[i]?'Phone connected':'Phone offline'}</span></div>`).join('')}</div><div class="muted" style="font-size:12.5px;margin-top:8px">Hands and tickets stay on each player’s phone. A disconnected player can reopen the page and choose Join a table.</div>`;
+    $('hand').innerHTML=`<div class="tableList">${G.players.map((q,i)=>`<div class="trow"><span class="dot" style="background:${q.hex}"></span><b>${esc(q.name)}</b><span class="pill ${!q.human||H.bind[i]?'ok':''}">${!q.human?'Computer':H.bind[i]?'Connected':'Offline'}</span></div>`).join('')}</div><div class="muted" style="font-size:12.5px;margin-top:8px">Hands and tickets stay on each player’s own device. A disconnected player can reopen the page and choose Join a table.</div>`;
   }else if(v<0||!G.players[v].hand){$('handTitle').textContent='Hand';$('hand').innerHTML='<div class="muted">Hidden until a player takes their turn.</div>';$('tixTitle').textContent='Tickets';$('tickets').innerHTML='';$('tsum').textContent=''}
   else{const vp=G.players[v];
-    $('handTitle').innerHTML=`${esc(poss(vp.name))} hand <span style="text-transform:none;letter-spacing:0">${handCount(vp.hand)} cards</span>`;
+    $('handTitle').innerHTML=`${esc(poss(vp.name))} hand <span style="text-transform:none;letter-spacing:0">${handCount(vp.hand)} card${handCount(vp.hand)===1?'':'s'}</span>`;
     $('hand').innerHTML=[...COLORS,'loco'].map(c=>`<div class="tcard ${c==='loco'?'loco':''} ${vp.hand[c]?'':'zero'}" ${c!=='loco'?`style="background:${CHEX[c]};color:${CTXT[c]||'#fff'}"`:''}>${cname(c)}${vp.hand[c]?`<span class="badge">${vp.hand[c]}</span>`:''}</div>`).join('');
     $('tixTitle').innerHTML=`${esc(poss(vp.name))} tickets`;
     let plus=0,minus=0;
