@@ -131,7 +131,7 @@ h1,h2,h3{margin:0}
 @media(max-width:700px){.mapscroll{max-height:58vh}
 .app.client{display:flex;flex-direction:column}.app.client .main{display:contents}
 .app.client .side{display:contents}
-.app.client .topbar{order:0}.app.client .players{order:1}.app.client .status{order:2}.app.client .side>section:nth-child(1){order:3}.app.client .side>section:nth-child(2){order:4}.app.client .side>section:nth-child(3){order:5}.app.client .mapwrap{order:6}.app.client .side>section:nth-child(4){order:7}}
+.app.client .topbar{order:0}.app.client .players{order:1}.app.client .status{order:2}.app.client .side>section:nth-child(1){order:3}.app.client .side>section:nth-child(2){order:4}.app.client .side>section:nth-child(3){order:5}.app.client .mapwrap{order:6}.app.client .side>section:nth-child(4){order:7}.app.client .side>section:nth-child(5){order:8}}
 .hint{position:absolute;left:8px;bottom:8px;font-size:12px;background:rgba(255,253,248,.92);padding:4px 8px;border-radius:8px;color:var(--muted);pointer-events:none}
 .city{cursor:pointer}
 .flashHalo{animation:flashHalo 1.8s ease-out forwards}
@@ -151,12 +151,21 @@ h1,h2,h3{margin:0}
   .app.host .mapwrap{grid-area:map}
   .app.host .pchip{min-width:0;padding:5px 9px}
   .app.host .pchip .st{font-size:11.5px}
-  .app.host .side{max-height:calc(100vh - 16px);top:8px;grid-template-rows:auto minmax(0,1fr)}
+  .app.host .side{max-height:calc(100vh - 16px);top:8px;grid-template-rows:auto auto minmax(0,1fr)}
   .app.host .side>section:last-child{display:flex;flex-direction:column;min-height:0}
   .app.host .log{max-height:none;flex:1;min-height:0}
   .app.host .tcard{width:48px;height:36px;font-size:9.5px}
   .app.host .deckbtn{width:60px}
 }
+
+/* chat */
+.chatList{display:grid;gap:4px;max-height:170px;overflow:auto;font-size:13.5px;align-content:start}
+.cmsg{padding:5px 8px;border-radius:8px;background:#f6f0e2}
+.cmsg.mine{background:#eef3fb}
+.cmsg .who{display:inline-block;font-weight:750;font-size:11.5px;padding:1px 7px;border-radius:999px;margin-right:6px}
+.chatForm{display:flex;gap:6px;margin-top:8px}
+.chatForm input{flex:1;min-width:0;font:inherit;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
+.chatForm input:focus{outline:none;border-color:#1d2843}
 
 /* cards */
 .market{display:flex;flex-wrap:wrap;gap:7px}
@@ -255,6 +264,7 @@ table.score tr.win td{font-weight:800;background:#fff4cc}
     <section class="card"><h3>Train cards <span id="deckInfo" style="text-transform:none;letter-spacing:0"></span></h3><div class="market" id="market"></div></section>
     <section class="card" id="handCard"><h3 id="handTitle">Your hand</h3><div class="hand" id="hand"></div></section>
     <section class="card" id="tixCard"><h3 id="tixTitle">Your tickets</h3><div class="tlist" id="tickets"></div><div class="tsum" id="tsum"></div></section>
+    <section class="card chatCard" id="chatCard" hidden><h3>Chat</h3><div class="chatList" id="chatList"></div><form class="chatForm" id="chatForm" autocomplete="off"><input id="chatIn" maxlength="140" placeholder="Say something…" aria-label="Chat message"><button class="btn small" type="submit">Send</button></form></section>
     <section class="card"><h3>Game log</h3><div class="log" id="log"></div></section>
   </div>
 </div>
@@ -498,8 +508,8 @@ function longest(pi){
 
 // ================= NETWORK =================
 let ROOM=null,USER=null,NR=null,netState='loading'; // loading | ready | none
-const H={local:-1,code:null,seats:[],bind:{},lastSeq:{},notes:{},noteN:0,bcT:null,timer:null,unsub:null};
-const C={code:null,seat:null,pub:null,priv:null,seq:0,wait:false,waitT:null,lastNote:0,lastFx:null,shownResults:false,unsubs:[]};
+const H={lastChat:{},chatN:0,local:-1,code:null,seats:[],bind:{},lastSeq:{},notes:{},noteN:0,bcT:null,timer:null,unsub:null};
+const C={lastChatId:null,chatSeq:0,code:null,seat:null,pub:null,priv:null,seq:0,wait:false,waitT:null,lastNote:0,lastFx:null,shownResults:false,unsubs:[]};
 // ----- PeerJS transport (used when the page runs outside Claude, e.g. GitHub Pages) -----
 let TRANSPORT='none';
 let TOK=(()=>{try{let t=localStorage.getItem('t2r-tok');if(!t){t=Math.random().toString(36).slice(2,12);localStorage.setItem('t2r-tok',t)}return t}catch(e){return Math.random().toString(36).slice(2,12)}})();
@@ -636,6 +646,7 @@ function onHostPeers(){
     for(const s in H.bind){
       if(H.bind[s].peer!==p.peer)continue;const a=pr.act,si=+s;
       if(a&&typeof a.seq==='number'&&a.seat===si&&a.seq>(H.lastSeq[si]||0)){H.lastSeq[si]=a.seq;applyRemote(si,a);changed=true}
+      const ch=pr.chat;if(ch&&typeof ch.seq==='number'&&ch.seq>(H.lastChat[si]||0)){H.lastChat[si]=ch.seq;addChat(si,ch.text);changed=true}
     }
   }
   if(changed||true){advertise();if(G)render();else renderSetup();broadcast()}
@@ -662,8 +673,9 @@ function pubState(){
     fu:G.faceUp,dn:G.deck.length,xn:G.discard.length,tn:G.tix.length,
     ow:G.owner.map(o=>o<0?'-':String(o)).join(''),cu:G.cur,dr:G.drawn,fl:G.finalLeft,
     lg:G.log.slice(0,8).map(l=>[l.pi,l.msg]),fx:G.flash?[G.flash.ri,G.flash.k]:null,
-    pk:Object.keys(G.picks).map(Number),rs:G.over?G.results:null};
+    pk:Object.keys(G.picks).map(Number),rs:G.over?G.results:null,ch:(G.chat||[]).slice(-15).map(m=>[m.pi,m.text,m.id])};
   while(JSON.stringify(d).length>3900&&d.lg.length>1)d.lg.pop();
+  while(JSON.stringify(d).length>3900&&d.ch.length>1)d.ch.shift();
   return d;
 }
 function privState(si){
@@ -723,7 +735,8 @@ function clientSync(){
   const prevFlash=G&&G.flash,first=!G;
   G={players:d.pl.map((x,i)=>({name:x.n,human:!!x.h,hex:PCOL[i].hex,score:x.s,trains:x.tr,cards:x.cd,tixN:x.tk,hand:null,tickets:[],pending:[]})),
     faceUp:d.fu,deckN:d.dn,discardN:d.xn,tixN:d.tn,owner:[...d.ow].map(ch=>ch==='-'?-1:+ch),cur:d.cu,drawn:d.dr,finalLeft:d.fl,
-    phase:d.ph,over:!!d.ov,log:d.lg.map(([pi,msg])=>({pi,msg,hex:pi!=null?PCOL[pi].hex:'#ccc'})),picks:{},flash:prevFlash,results:d.rs};
+    phase:d.ph,over:!!d.ov,log:d.lg.map(([pi,msg])=>({pi,msg,hex:pi!=null?PCOL[pi].hex:'#ccc'})),picks:{},flash:prevFlash,results:d.rs,chat:(d.ch||[]).map(([pi,text,id])=>({pi,text,id}))};
+  {const mx=G.chat.reduce((a,m)=>Math.max(a,m.id),0);if(C.lastChatId!=null)G.chat.filter(m=>m.id>C.lastChatId&&m.pi!==C.seat).forEach(m=>toast(chatName(m.pi)+': '+m.text));C.lastChatId=Math.max(C.lastChatId||0,mx)}
   (d.pk||[]).forEach(pi=>G.picks[pi]={remote:true});
   if(pv){const me=G.players[C.seat];me.hand=pv.h;me.tickets=pv.tk||[];me.pending=pv.pd||[];if(pv.pk)G.picks[C.seat]={min:pv.pk.min,init:!!pv.pk.init};else delete G.picks[C.seat]}
   if(d.fx&&C.lastFx!==d.fx[1]){if(C.lastFx!==null||!first){G.flash={ri:d.fx[0],t:Date.now()};setTimeout(()=>{if(G)renderMap()},1900)}C.lastFx=d.fx[1]}
@@ -843,7 +856,7 @@ $('setupBody').addEventListener('click',e=>{
 function newGame(cfg){
   gameId++;
   G={players:cfg.map((c,i)=>({name:c.name,human:c.human,hex:PCOL[i].hex,hand:emptyHand(),tickets:[],pending:[],trains:45,score:0})),
-     picks:{},flash:null,results:null,deck:makeDeck(),discard:[],faceUp:[null,null,null,null,null],tix:shuffle(TICKETS.map((_,i)=>i)),
+     picks:{},chat:[],flash:null,results:null,deck:makeDeck(),discard:[],faceUp:[null,null,null,null,null],tix:shuffle(TICKETS.map((_,i)=>i)),
      owner:Array(ROUTES.length).fill(-1),cur:0,drawn:0,drawLog:[],finalLeft:null,phase:'init',initIdx:0,log:[],revealed:-1,over:false};
   G.players.forEach(p=>{for(let k=0;k<4;k++){const c=drawFromDeck();p.hand[c]++}});
   fillFaceUp();
@@ -1182,7 +1195,31 @@ document.addEventListener('fullscreenchange',()=>{if(G)setTimeout(render,80)});
 $('newBtn').onclick=()=>{
   const q=MODE==='client'?['Leave this table?','You can rejoin from Join a table while the game is running.','Leave']:MODE==='host'?['Close the table?','The game ends for everyone at this table.','Close table']:['Start a new game?','The current game will be lost.','New game'];
   openModal(`<h2>${q[0]}</h2><div class="sub">${q[1]}</div><div class="row"><button class="btn" id="nY">${q[2]}</button><button class="btn ghost" id="nN">Keep playing</button></div>`,()=>{$('nY').onclick=()=>{closeModal();backToSetup()};$('nN').onclick=closeModal},true)};
-function backToSetup(){gameId++;leaveTable();G=null;$('game').hidden=true;$('setup').hidden=false;renderSetup()}
+function backToSetup(){$('chatCard').hidden=true;gameId++;leaveTable();G=null;$('game').hidden=true;$('setup').hidden=false;renderSetup()}
+
+// ================= CHAT =================
+function chatName(pi){return pi>=0&&G&&G.players[pi]?G.players[pi].name:'Host'}
+function addChat(pi,text){
+  if(!G||MODE!=='host')return;text=String(text||'').replace(/\s+/g,' ').trim().slice(0,140);if(!text)return;
+  G.chat.push({pi,text,id:++H.chatN});if(G.chat.length>60)G.chat.shift();
+  if(pi!==H.local)toast(chatName(pi)+': '+text);
+  render();
+}
+function sendChat(text){
+  text=String(text||'').replace(/\s+/g,' ').trim().slice(0,140);if(!text||!G)return false;
+  if(MODE==='host'){addChat(H.local>=0?H.local:-1,text);return true}
+  if(MODE==='client'&&C.seat!=null&&NR){C.chatSeq=Math.max(Date.now(),C.chatSeq+1);NR.presence({chat:{seq:C.chatSeq,text}}).catch(()=>toast('Message not sent — connection problem.'));return true}
+  return false;
+}
+$('chatForm').addEventListener('submit',e=>{e.preventDefault();const i=$('chatIn');if(sendChat(i.value))i.value=''});
+function renderChat(){
+  const on=MODE!=='local'&&!!G;$('chatCard').hidden=!on;if(!on)return;
+  const L=$('chatList'),atBottom=L.scrollHeight-L.scrollTop-L.clientHeight<30;
+  const me=viewer();
+  L.innerHTML=(G.chat||[]).map(m=>{const pl=m.pi>=0?G.players[m.pi]:null,hex=pl?pl.hex:'#6b6255',light=m.pi===3;
+    return`<div class="cmsg${m.pi===me?' mine':''}"><span class="who" style="background:${hex};color:${light?'#2a251e':'#fff'}">${esc(chatName(m.pi))}</span>${esc(m.text)}</div>`}).join('')||'<div class="muted" style="font-size:13px">No messages yet.</div>';
+  if(atBottom||L.dataset.n!==String((G.chat||[]).length))L.scrollTop=L.scrollHeight;L.dataset.n=String((G.chat||[]).length);
+}
 
 // ================= RENDER =================
 function renderMap(){
@@ -1308,6 +1345,7 @@ function render(){
     $('tsum').textContent=vp.tickets.length?`If the game ended now: +${plus} complete, −${minus} unfinished. Tap a ticket to highlight it.`:'';
     $('tickets').querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{const T=TICKETS[+b.dataset.h];const on=highlight.has(T[0])&&highlight.has(T[1]);highlight=on?new Set():new Set([T[0],T[1]]);render()});
   }
+  renderChat();
   // log
   $('log').innerHTML=G.log.slice(0,40).map(l=>{
     if(l.pi==null)return`<div class="sys">${esc(l.msg)}</div>`;
