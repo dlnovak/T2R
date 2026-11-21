@@ -275,21 +275,22 @@ const BCOL = {
   brown:  {name:'Brown',     hex:'#b88a64', deep:'#5c3a20', roof:'#8e5d38'},
 };
 /* 11 numbered buildings. Buildings 3, 4, 6, 8, 10 and 11 have two parts (rulebook p.4).
-   cells: [col, row, spaces]. One Pompeii card exists per space (rulebook p.4). [EST] space counts */
+   cells: [col, row, spaces]. One Pompeii card exists per space (rulebook p.4).
+   Space counts per building part checked against the board picture in the rulebook PDF (53 in total). */
 const BUILD = [
   {n:1,  color:'gray',   icon:'forum',   name:'Forum', parts:[{name:'Forum', cells:[[3,8,2],[4,8,2]]}],
    fact:'The civic heart of the city. Its Temple of Jupiter was still being repaired from the earthquake of AD 62 when the mountain woke.'},
   {n:2,  color:'purple', icon:'faun',    name:'House of the Faun', parts:[{name:'House of the Faun', cells:[[3,4,2],[4,4,2]]}],
    fact:'A mansion filling a whole city block, named for its dancing bronze faun. The Alexander Mosaic covered one floor.'},
-  {n:3,  color:'purple', icon:'vettii',  name:'Vettii & Golden Cupids', parts:[{name:'House of the Vettii', cells:[[3,1,2]]}, {name:'House of the Golden Cupids', cells:[[5,1,3]]}],
+  {n:3,  color:'purple', icon:'vettii',  name:'Vettii & Golden Cupids', parts:[{name:'House of the Vettii', cells:[[3,1,3]]}, {name:'House of the Golden Cupids', cells:[[5,1,2]]}],
    fact:'The Vettii brothers were freed slaves who grew rich in trade. Next door, gold-leaf cupids set in glass gave a house its name.'},
-  {n:4,  color:'gray',   icon:'baths',   name:'The Baths', parts:[{name:'Stabian Baths', cells:[[7,8,3]]}, {name:'Forum Baths', cells:[[4,6,2]]}],
+  {n:4,  color:'gray',   icon:'baths',   name:'The Baths', parts:[{name:'Stabian Baths', cells:[[7,8,4]]}, {name:'Forum Baths', cells:[[4,6,3]]}],
    fact:'Public baths had separate suites for men and women, warmed by hollow hypocaust floors. The Stabian Baths are the oldest in town.'},
   {n:5,  color:'purple', icon:'vettii',  name:'House of Menander', parts:[{name:'House of Menander', cells:[[9,8,2],[9,9,2]]}],
    fact:'Named for a painting of the Greek playwright Menander. A chest of 118 silver vessels was found hidden in its cellar.'},
   {n:6,  color:'turq',   icon:'fullery', name:'Fullery & Macellum', parts:[{name:'Fullery of Stephanus', cells:[[7,5,3]]}, {name:'Macellum', cells:[[9,4,4]]}],
    fact:'Fullers cleaned cloth by treading it in vats of water and urine. At the Macellum food market, fish scales were found in the drain.'},
-  {n:7,  color:'purple', icon:'faun',    name:'House of the Tragic Poet', parts:[{name:'House of the Tragic Poet', cells:[[1,5,4]]}],
+  {n:7,  color:'purple', icon:'faun',    name:'House of the Tragic Poet', parts:[{name:'House of the Tragic Poet', cells:[[1,5,3]]}],
    fact:'Its doorway mosaic shows a chained dog above the words CAVE CANEM: beware of the dog.'},
   {n:8,  color:'gray',   icon:'temple',  name:'The Temples', parts:[{name:'Temple of Apollo', cells:[[1,8,3]]}, {name:'Temple of Jupiter', cells:[[3,9,2]]}],
    fact:'A bronze Apollo, drawing his bow, stood before his colonnade. Jupiter\'s temple closed the north end of the Forum.'},
@@ -297,7 +298,7 @@ const BUILD = [
    fact:'81 carbonised loaves were found still in its oven, each scored into eight wedges for breaking.'},
   {n:10, color:'brown',  icon:'theatre', name:'The Theatres', parts:[{name:'Large Theatre', cells:[[8,11,3]]}, {name:'Odeon', cells:[[7,11,2]]}],
    fact:'The Large Theatre seated about 5,000. The roofed Odeon beside it held around 1,500 for music and recitals.'},
-  {n:11, color:'brown',  icon:'amphi',   name:'Amphitheatre & Barracks', parts:[{name:'Amphitheatre', cells:[[11,9,3]]}, {name:'Gladiators\' Barracks', cells:[[11,11,3]]}],
+  {n:11, color:'brown',  icon:'amphi',   name:'Amphitheatre & Barracks', parts:[{name:'Amphitheatre', cells:[[11,9,3]]}, {name:'Gladiators\' Barracks', cells:[[11,11,2]]}],
    fact:'The oldest surviving stone amphitheatre, built about 70 BC. A riot there in AD 59 got its games banned for ten years.'},
 ];
 const BY_NUM = new Map();
