@@ -533,16 +533,18 @@ function peerHost(code){
     const entry=(id,c)=>({peer:id,by:(c.presence&&c.presence.tok)||null,isMe:false,sameTab:false,kind:'viewer',guest:false,presence:c.presence||{},updatedAt:Date.now()});
     const snap=()=>[{peer:peer.id,by:null,isMe:true,sameTab:true,kind:'viewer',guest:false,presence:myPres,updatedAt:Date.now()},...[...conns.entries()].filter(([,c])=>c.open).map(([id,c])=>entry(id,c))];
     let fT;const fire=()=>{clearTimeout(fT);fT=setTimeout(()=>{const s=snap();peerH.forEach(h=>{try{h({peers:s,joined:[],left:[],updated:[]})}catch(e){}})},0)};
-    peer.on('open',()=>{opened=true;resolve(api)});
+    const handleData=(c,m)=>{c.seen=Date.now();if(!m||typeof m!=='object')return;
+      if(m.t==='ping'){try{c.conn.send({t:'pong'})}catch(e){}return}
+      if(m.t==='bye'){if(conns.get(c.conn.peer)===c){conns.delete(c.conn.peer);fire()}return}
+      if(m.t==='pres'&&m.presence&&typeof m.presence==='object'){c.presence=m.presence;fire()}};
+    peer.on('open',()=>{opened=true;resolve(api);startRelayHost(code,conns,fire,handleData).then(r=>{api._relay=r}).catch(()=>{})});
     peer.on('error',e=>{if(!opened)reject(e)});
     peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
     peer.on('connection',conn=>{
       const old=conns.get(conn.peer);const c={conn,open:false,presence:old?old.presence:{},seen:Date.now()};conns.set(conn.peer,c);
       if(old&&old.conn!==conn){try{old.conn.close()}catch(e){}}
       conn.on('open',()=>{c.open=true;c.seen=Date.now();fire()});
-      conn.on('data',m=>{c.seen=Date.now();if(!m)return;
-        if(m.t==='ping'){try{conn.send({t:'pong'})}catch(e){}return}
-        if(m.t==='pres'&&m.presence&&typeof m.presence==='object'){c.presence=m.presence;fire()}});
+      conn.on('data',m=>handleData(c,m));
       const drop=()=>{if(conns.get(conn.peer)===c){conns.delete(conn.peer);fire()}};
       conn.on('close',drop);conn.on('error',drop);
     });
@@ -557,11 +559,11 @@ function peerHost(code){
       presence:async patch=>{myPres=Object.assign({},myPres,patch);fire()},
       peers:()=>snap(),
       onPeers:h=>{peerH.push(h);fire();return()=>{}},
-      leave:async()=>{try{peer.destroy()}catch(e){}},
+      leave:async()=>{try{peer.destroy()}catch(e){}try{api._relay&&api._relay.end()}catch(e){}},
     };
   });
 }
-function peerJoin(code,onDown){
+function peerJoin(code,onDown,opt){opt=opt||{};const maxTries=opt.tries||3,tryMs=opt.ms||14000;
   return new Promise((resolve,reject)=>{
     const peer=new Peer(peerOpts());const hostId=PEER_PREFIX+code;
     const topicH={};let myPres={tok:TOK},conn=null,ready=false,dead=false,tries=0,openT=null,connecting=false,connStart=0,lastMsg=Date.now(),down=false,wd=null;
@@ -576,7 +578,7 @@ function peerJoin(code,onDown){
       const c=conn=peer.connect(hostId,{reliable:true});tries++;
       clearTimeout(openT);
       if(!ready)openT=setTimeout(()=>{if(ready||dead||c.open)return;connecting=false;
-        if(tries<3){C.slow=true;renderSetup();connect()}else{dead=true;try{peer.destroy()}catch(e){}reject({type:'ice-timeout'})}},14000);
+        if(tries<maxTries){C.slow=true;renderSetup();connect()}else{dead=true;clearInterval(wd);try{peer.destroy()}catch(e){}reject({type:'ice-timeout'})}},tryMs);
       c.on('open',()=>{if(c!==conn)return;clearTimeout(openT);connecting=false;lastMsg=Date.now();c.send({t:'pres',presence:myPres});
         if(!ready){ready=true;C.slow=false;resolve(api)}else setDown(false)});
       c.on('data',m=>{if(c===conn)deliver(m)});
@@ -609,6 +611,101 @@ function peerJoin(code,onDown){
       leave:async()=>{dead=true;clearInterval(wd);clearTimeout(openT);try{peer.destroy()}catch(e){}},
     };
   });
+}
+// ----- encrypted relay through a public MQTT broker (backup when a direct link can't be made) -----
+const RELAY_URLS=()=>window.RELAY_URLS||['wss://broker.hivemq.com:8884/mqtt','wss://broker.emqx.io:8084/mqtt'];
+let mqttLoad=null;
+function loadMQTT(){if(window.mqtt)return Promise.resolve();mqttLoad=mqttLoad||(async()=>{
+  const srcs=window.MQTT_SRC?[window.MQTT_SRC]:['https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js','https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js'];
+  for(const s of srcs){try{await loadScript(s);if(window.mqtt)return}catch(e){}}throw new Error('mqtt')})();return mqttLoad}
+const relayKeys={};
+function relayKey(code){return relayKeys[code]=relayKeys[code]||(async()=>{const enc=new TextEncoder();
+  const base=await crypto.subtle.importKey('raw',enc.encode('t2r-table-'+code),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('ticket-to-ride-relay-v1'),iterations:60000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])})()}
+async function sealMsg(key,obj){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj))));const out=new Uint8Array(12+ct.length);out.set(iv);out.set(ct,12);return out}
+async function openMsg(key,buf){try{const b=new Uint8Array(buf);const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b.slice(0,12)},key,b.slice(12));return JSON.parse(new TextDecoder().decode(pt))}catch(e){return null}}
+function mqttConnect(url){return new Promise((res,rej)=>{let done=false;
+  const cl=mqtt.connect(url,{clientId:'t2r_'+Math.random().toString(36).slice(2,12),keepalive:20,reconnectPeriod:2000,connectTimeout:8000,clean:true});
+  const t=setTimeout(()=>{if(!done){done=true;try{cl.end(true)}catch(e){}rej(new Error('timeout'))}},9000);
+  cl.once('connect',()=>{if(done)return;done=true;clearTimeout(t);res(cl)});
+  cl.once('error',()=>{if(done)return;done=true;clearTimeout(t);try{cl.end(true)}catch(e){}rej(new Error('mqtt'))});})}
+const RT=code=>'t2r1/'+code;
+async function startRelayHost(code,conns,fire,handleData){
+  await loadMQTT();const key=await relayKey(code);const clients=[];
+  await Promise.all(RELAY_URLS().map(async url=>{try{
+    const cl=await mqttConnect(url);clients.push(cl);let q=Promise.resolve();
+    cl.subscribe(RT(code)+'/up/+');
+    cl.on('message',(topic,buf)=>{q=q.then(async()=>{
+      const id=topic.split('/')[3];if(!id||!/^r[a-z0-9]{6,16}$/.test(id))return;
+      const m=await openMsg(key,buf);if(!m)return;
+      let c=conns.get(id);
+      if(!c||!c.relay){let sq=Promise.resolve();
+        c={relay:true,open:true,presence:{},seen:Date.now(),conn:{peer:id,open:true,close(){},send(msg){sq=sq.then(async()=>{cl.publish(RT(code)+'/down/'+id,await sealMsg(key,msg))}).catch(()=>{})}}};
+        conns.set(id,c);fire();}
+      if(m.t==='hello'){c.conn.send({t:'welcome'});c.seen=Date.now();return}
+      handleData(c,m);
+    }).catch(()=>{})});
+  }catch(e){}}));
+  if(!clients.length)throw new Error('no relay');
+  return{end(){clients.forEach(c=>{try{c.end(true)}catch(e){}})}};
+}
+function relayJoin(code,onDown){
+  return new Promise(async(resolve,reject)=>{
+    try{await loadMQTT()}catch(e){reject({type:'relay-unavailable'});return}
+    const key=await relayKey(code);const id='r'+Math.random().toString(36).slice(2,12).replace(/[^a-z0-9]/g,'').padEnd(8,'x');
+    let cl=null;for(const url of RELAY_URLS()){try{cl=await mqttConnect(url);break}catch(e){}}
+    if(!cl){reject({type:'relay-unavailable'});return}
+    const topicH={};let myPres={tok:TOK},ready=false,dead=false,lastMsg=Date.now(),down=false,sq=Promise.resolve(),rq=Promise.resolve();
+    const setDown=v=>{if(down===v)return;down=v;onDown&&onDown(v)};
+    const send=msg=>{sq=sq.then(async()=>{cl.publish(RT(code)+'/up/'+id,await sealMsg(key,msg))}).catch(()=>{})};
+    cl.subscribe(RT(code)+'/down/'+id);
+    cl.on('message',(topic,buf)=>{rq=rq.then(async()=>{const m=await openMsg(key,buf);if(!m)return;lastMsg=Date.now();setDown(false);
+      if(m.t==='welcome'){if(!ready){ready=true;send({t:'pres',presence:myPres});resolve(api)}else send({t:'pres',presence:myPres});return}
+      if(m.t==='emit')(topicH[m.topic]||[]).forEach(h=>{try{h({topic:m.topic,data:m.data,peer:'host',by:null,isMe:false,sameTab:false,kind:'viewer',guest:false})}catch(e){}});
+    }).catch(()=>{})});
+    cl.on('reconnect',()=>setDown(true));
+    cl.on('connect',()=>{if(ready)send({t:'hello'})});
+    send({t:'hello'});
+    const helloT=setInterval(()=>{if(!ready&&!dead)send({t:'hello'})},2000);
+    const failT=setTimeout(()=>{if(!ready){dead=true;clearInterval(helloT);try{cl.end(true)}catch(e){}reject({type:'relay-timeout'})}},15000);
+    const wd=setInterval(()=>{if(dead||!ready)return;send({t:'ping'});if(Date.now()-lastMsg>12000){setDown(true);send({t:'hello'})}},3000);
+    const api={
+      transport:'relay',
+      emit:async()=>{},
+      on:(t,h)=>{(topicH[t]=topicH[t]||[]).push(h);return()=>{}},
+      presence:async patch=>{myPres=Object.assign({},myPres,patch,{tok:TOK});send({t:'pres',presence:myPres})},
+      peers:()=>[{peer:id,by:TOK,isMe:true,sameTab:true,kind:'viewer',guest:false,presence:myPres,updatedAt:Date.now()}],
+      onPeers:()=>()=>{},
+      leave:async()=>{dead=true;clearInterval(wd);clearInterval(helloT);clearTimeout(failT);send({t:'bye'});setTimeout(()=>{try{cl.end(true)}catch(e){}},300)},
+    };
+    const origResolve=resolve;resolve=v=>{clearInterval(helloT);clearTimeout(failT);origResolve(v)};
+  });
+}
+// Direct link first; fall back to the encrypted relay if it can't be made, or if a direct link stays down.
+async function hybridJoin(code,onDown){
+  const topicH={};let pres={tok:TOK},cur=null,switching=false,downSince=0,dead=false;
+  const attach=t=>{Object.keys(topicH).forEach(k=>topicH[k].forEach(h=>t.on(k,h)))};
+  const toRelay=async()=>{if(switching||dead||(cur&&cur.transport==='relay'))return;switching=true;
+    try{const r=await relayJoin(code,v=>onDown(v));const old=cur;cur=r;attach(r);await r.presence(pres);try{old&&old.leave()}catch(e){}onDown(false)}catch(e){}switching=false};
+  const directDown=v=>{onDown(v);if(v){downSince=downSince||Date.now()}else downSince=0};
+  const wd=setInterval(()=>{if(!dead&&downSince&&Date.now()-downSince>20000&&cur&&cur.transport!=='relay')toRelay()},4000);
+  if(window.FORCE_RELAY){cur=await relayJoin(code,onDown)}
+  else{
+    try{cur=await peerJoin(code,directDown,{tries:1,ms:12000});cur.transport='direct'}
+    catch(e){if(e&&e.type==='peer-unavailable'){clearInterval(wd);throw e}
+      C.slow=true;renderSetup();
+      try{cur=await relayJoin(code,onDown)}catch(e2){clearInterval(wd);throw{type:'ice-timeout'}}}
+  }
+  return{
+    get transport(){return cur.transport},
+    emit:async()=>{},
+    on:(t,h)=>{(topicH[t]=topicH[t]||[]).push(h);return cur.on(t,h)},
+    presence:async patch=>{pres=Object.assign({},pres,patch);return cur.presence(patch)},
+    peers:()=>cur.peers(),
+    onPeers:()=>()=>{},
+    _drop:()=>cur._drop&&cur._drop(),
+    leave:async()=>{dead=true;clearInterval(wd);return cur.leave()},
+  };
 }
 const URLCODE=(()=>{try{const m=(new URLSearchParams(location.search).get('t')||'').toLowerCase().replace(/[^a-z]/g,'');return m.length===4?m:null}catch(e){return null}})();
 (async()=>{
@@ -729,10 +826,10 @@ async function joinTable(code){
   if(netState!=='ready'||joining)return;
   joining=true;C.code=code;C.joinErr=null;MODE='client';C.pub=null;renderSetup();
   try{
-    if(TRANSPORT==='peer')NR=await peerJoin(code,down=>{C.down=down;if(G)render();else renderSetup()});
+    if(TRANSPORT==='peer')NR=await hybridJoin(code,down=>{C.down=down;if(G)render();else renderSetup()});
     else NR=await ROOM.join('ttr-'+code);
-  }catch(e){joining=false;MODE='local';setupMode='join';C.joinErr=(e&&e.type==='peer-unavailable')?`No open table with code ${code.toUpperCase()}. Check the code on the host’s screen.`:(e&&e.type==='ice-timeout')?'Found the table, but couldn’t link to the host’s computer. Try: both on the same Wi-Fi, turn off any VPN, and use Chrome, Edge or Safari. Then try again.':'Could not join that table. Check your internet connection and try again.';C.slow=false;renderSetup();return}
-  joining=false;
+  }catch(e){joining=false;MODE='local';setupMode='join';C.joinErr=(e&&e.type==='peer-unavailable')?`No open table with code ${code.toUpperCase()}. Check the code on the host’s screen.`:(e&&e.type==='ice-timeout')?'Found the table, but couldn’t link to the host’s computer, even through the backup relay. Check both internet connections, turn off any VPN, and try again.':'Could not join that table. Check your internet connection and try again.';C.slow=false;renderSetup();return}
+  joining=false;C.slow=false;
   if(TRANSPORT==='peer'){try{const last=JSON.parse(localStorage.getItem('t2r-seat')||'null');if(last&&last.code===code){C.seat=last.seat;NR.presence({seat:last.seat,act:null}).catch(()=>{})}}catch(e){}}
   MODE='client';C.code=code;if(TRANSPORT!=='peer'||C.seat==null)C.seat=null;C.pub=null;C.priv=null;C.wait=false;C.shownResults=false;C.lastFx=null;
   C.unsubs=[NR.on('pub',m=>{C.pub=m.data;clientSync()},()=>{}),NR.on('priv',m=>{const d=m.data;if(!d||d.peer!==myPeer())return;C.priv=d;clientSync()},()=>{})];
@@ -800,7 +897,7 @@ function renderSetup(){
     <div class="startRow"><button class="btn big" data-act="hostStart" ${waiting?'disabled':''}>${waiting?`Waiting for ${waiting} player${waiting>1?'s':''}`:'Start game'}</button><button class="btn ghost" data-act="cancel">Close table</button></div>`;
   }else if(MODE==='client'){
     const d=C.pub;
-    if(!d)h=`<h3>Joining table ${esc((C.code||'').toUpperCase())}…</h3><div class="muted">${C.slow?'Still connecting — this can take a few extra seconds on some networks…':'Connecting to the host’s computer…'}</div><div class="startRow"><button class="btn ghost" data-act="cancel">Back</button></div>`;
+    if(!d)h=`<h3>Joining table ${esc((C.code||'').toUpperCase())}…</h3><div class="muted">${C.slow?'Direct link didn’t work — switching to the backup relay…':'Connecting to the host’s computer…'}</div><div class="startRow"><button class="btn ghost" data-act="cancel">Back</button></div>`;
     else{
       const mine=seatedHere();
       h=`<h3>Table ${esc(d.code.toUpperCase())} — who are you?</h3>
