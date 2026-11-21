@@ -1,4 +1,4 @@
-# Game Night
+# The Game Table
 
 Browser board games. Open `index.html` to pick a game.
 
