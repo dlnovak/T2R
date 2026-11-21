@@ -1113,8 +1113,7 @@ const RULES = `<h2>How to play</h2>
 <li>Pieces cut off from every gate go straight into the volcano.</li>
 <li><b>Exceptions:</b> with only 1 piece left in the city you may move it twice. A piece that started your turn alone on its square may also move twice.</li></ul>
 <h3>END</h3>
-<p>The game ends after the player who draws the last lava tile finishes their turn (or earlier if nobody is left in the city). Pieces still inside are lost. Most pieces saved wins; a tie goes to whoever has fewer pieces in the volcano.</p>
-<p><b>Dual vent variant (optional):</b> 3 extra double-sided tiles; when you draw one, choose which symbol to play.</p>`;
+<p>The game ends after the player who draws the last lava tile finishes their turn (or earlier if nobody is left in the city). Pieces still inside are lost. Most pieces saved wins; a tie goes to whoever has fewer pieces in the volcano.</p>`;
 
 /* ================= Setup and online play ================= */
 let setupMode = 'local';
@@ -1147,8 +1146,7 @@ function setupHTML() {
     <p id="setupErr" class="err"></p>
     <div class="row-btns"><button class="btn primary" id="joinBtn">Join room</button><button class="btn" id="setupRules">How to play</button></div>`;
   }
-  const dual = setupMode !== 'join' ? `<label class="chk"><input type="checkbox" id="dualChk" ${setupDual ? 'checked' : ''}> Dual vent variant (3 extra double-sided lava tiles)</label>` : '';
-  return `<div class="mbox"><h2>The Downfall of Pompeii</h2>${setupTabs()}${body.replace('<p id="setupErr"', dual + '<p id="setupErr"')}</div>`;
+  return `<div class="mbox"><h2>The Downfall of Pompeii</h2>${setupTabs()}${body}</div>`;
 }
 function setErr(t) { const e = document.getElementById('setupErr'); if (e) e.textContent = t; }
 function openSetup() {
