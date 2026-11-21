@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Flight from Vesuvius</title>
+<title>The Downfall of Pompeii</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya+Sans:wght@400;500;700&family=Alegreya:ital@1&display=swap" rel="stylesheet">
@@ -32,7 +32,8 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
 .btn:hover{border-color:var(--ochre)}
 .btn.primary{background:var(--fresco);border-color:#c5503d;color:#fff;font-weight:700}
 .btn.primary:hover{background:#b23726}
-.layout{display:grid;gap:14px}
+.layout{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+.layout>*{min-width:0}
 .mountain{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
 .mountain svg{width:92px;height:56px;flex:0 0 auto}
 .mt-title{font-family:var(--display);font-size:.75rem;letter-spacing:.14em;color:var(--ochre)}
@@ -156,7 +157,8 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
   .handwrap{flex:0 0 auto}
   .handwrap .section-h{margin:0 0 2px}
   .hand{overflow:visible;padding:6px 2px 8px;gap:1.2vh}
-  .hand .card{font-size:clamp(7px,1.32vh,14px)}
+  .hand .card{font-size:clamp(7px,1.22vh,13px)}
+  .hand .discard .card{font-size:clamp(5px,.78vh,8px)}
   .hand-note{max-width:60ch}
   .bottomrow{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:8px}
   .bottomrow .panel{min-height:0;overflow:hidden;display:flex;flex-direction:column;padding:6px 10px}
@@ -174,13 +176,25 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
 .codein:focus{outline:2px solid var(--ochre)}
 .roomcode{font-family:var(--display);font-weight:900;font-size:2.6rem;letter-spacing:.3em;color:var(--ochre);text-align:center;padding:10px;margin:8px 0;border:1px dashed var(--line);border-radius:10px;background:#140d0c}
 .btn:disabled{opacity:.4;cursor:not-allowed}
+.cfoot .spaces{display:flex;gap:.35em;flex-wrap:wrap;align-items:flex-end}
+.grp{display:inline-flex;gap:.15em;padding:.15em .2em;border:1px solid rgba(37,24,15,.4);border-radius:.3em}
+.grp i{width:.7em;height:.7em;border-radius:50%;background:#f6efe0;border:.12em solid var(--ink);display:block}
+.card .cnum{color:var(--bd)}
+.wild{font-family:var(--display);font-weight:900;font-size:.8em;letter-spacing:.1em;color:#fff;background:#9b2d20;border-radius:.3em;padding:.1em .4em}
+.discard{display:flex;flex-direction:column;gap:4px;align-items:flex-start;margin-left:8px;padding-left:12px;border-left:1px dashed var(--line);font-family:var(--display);font-size:.7rem;letter-spacing:.1em;color:var(--ash)}
+.card.small{font-size:7px}
+.hand .discard .card{font-size:6px}
+.hand .discard .card.small{font-size:clamp(5px,.75vh,8px);cursor:default}
+.card.empty{display:flex;align-items:center;justify-content:center;min-height:14em;background:transparent;border:1px dashed var(--line);color:var(--ash);box-shadow:none}
+.chk{display:flex;gap:8px;align-items:center;margin:12px 0 0;font-size:.9rem;color:var(--plaster)}
+.chk input{width:18px;height:18px;accent-color:var(--fresco)}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 <div id="app">
   <header>
-    <h1>Flight from Vesuvius<small>POMPEII · AD 79</small></h1>
+    <h1>The Downfall of Pompeii<small>AD 79</small></h1>
     <span class="chip" id="phase">Settling the city</span>
     <span class="chip" id="pile">Draw pile</span>
     <span class="spacer"></span>
@@ -212,7 +226,10 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
 <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
 <script>
 'use strict';
-/* =============== Static data =============== */
+/* ================= Board data =================
+   Rules follow the published rulebook (The Downfall of Pompeii, 2nd English edition).
+   Board art and the exact positions of buildings on this map are original.
+   Values marked [EST] could not be read clearly from the photos and are best estimates. */
 const N = 13, CS = 40;
 const K = (c, r) => c + ',' + r;
 const P = k => k.split(',').map(Number);
@@ -220,6 +237,7 @@ const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
 const interior = (c, r) => c >= 1 && c <= 11 && r >= 1 && r <= 11;
 const INK = '#2b1d14', COL = '#f3e8cc';
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function hash(c, r) { return ((c * 73856093) ^ (r * 19349663)) >>> 0; }
 
 const HOUSES = [
   {gens:'Umbricii', m:'Umbricius', f:'Umbricia', color:'#d63a2c', light:'#ff8a7a', trade:'garum makers'},
@@ -227,17 +245,17 @@ const HOUSES = [
   {gens:'Popidii',  m:'Popidius',  f:'Popidia',  color:'#e2ae1c', light:'#ffd862', trade:'old nobility'},
   {gens:'Holconii', m:'Holconius', f:'Holconia', color:'#22a17a', light:'#6fe0bb', trade:'wine growers'},
 ];
-const PRAE = ['Gaius','Lucius','Marcus','Publius','Quintus','Titus','Aulus','Decimus','Gnaeus','Sextus','Numerius','Spurius'];
-const COGF = ['Prima','Secunda','Tertia','Maxima','Paulla','Rufa','Iusta','Fortunata','Felicula'];
+const PRAE = ['Gaius','Lucius','Marcus','Publius','Quintus','Titus','Aulus','Decimus','Gnaeus','Sextus','Numerius','Spurius','Gaius','Lucius','Marcus'];
+const COGF = ['Prima','Secunda','Tertia','Maxima','Paulla','Rufa','Iusta','Fortunata','Felicula','Quarta','Quinta','Secundilla','Prisca','Vera','Lucilla'];
 
 const GATES = [
-  {id:1, name:'Porta Marina',   short:'MARINA',   c:0,  r:7},
-  {id:2, name:'Porta Ercolano', short:'ERCOLANO', c:2,  r:0},
-  {id:3, name:'Porta Vesuvio',  short:'VESUVIO',  c:6,  r:0},
-  {id:4, name:'Porta di Nola',  short:'NOLA',     c:12, r:3},
-  {id:5, name:'Porta di Sarno', short:'SARNO',    c:12, r:7},
-  {id:6, name:'Porta di Nocera',short:'NOCERA',   c:10, r:12},
-  {id:7, name:'Porta di Stabia',short:'STABIA',   c:6,  r:12},
+  {id:1, name:'Porta Marina',   c:0,  r:7},
+  {id:2, name:'Porta Ercolano', c:2,  r:0},
+  {id:3, name:'Porta Vesuvio',  c:6,  r:0},
+  {id:4, name:'Porta di Nola',  c:12, r:3},
+  {id:5, name:'Porta di Sarno', c:12, r:7},
+  {id:6, name:'Porta di Nocera',c:10, r:12},
+  {id:7, name:'Porta di Stabia',c:6,  r:12},
 ];
 const GATE_BY_KEY = new Map();
 GATES.forEach(g => {
@@ -246,65 +264,279 @@ GATES.forEach(g => {
   g.rot = g.r === 0 ? 0 : g.r === 12 ? 180 : g.c === 0 ? -90 : 90;
   GATE_BY_KEY.set(g.k, g);
 });
-
 const ROAD = new Set();
 for (let i = 1; i <= 11; i++) { ROAD.add(K(i,7)); ROAD.add(K(6,i)); ROAD.add(K(i,3)); ROAD.add(K(2,i)); ROAD.add(K(10,i)); }
 
+/* The 4 building colours of the game */
+const BCOL = {
+  gray:   {name:'Gray',      hex:'#a7b0bb', deep:'#56606c', roof:'#8d97a3'},
+  purple: {name:'Purple',    hex:'#9c7cc0', deep:'#4f3273', roof:'#7b559f'},
+  turq:   {name:'Turquoise', hex:'#62b3ae', deep:'#1d625e', roof:'#2f948f'},
+  brown:  {name:'Brown',     hex:'#b88a64', deep:'#5c3a20', roof:'#8e5d38'},
+};
+/* 11 numbered buildings. Buildings 3, 4, 6, 8, 10 and 11 have two parts (rulebook p.4).
+   cells: [col, row, spaces]. One Pompeii card exists per space (rulebook p.4). [EST] space counts */
 const BUILD = [
-  {roman:'I',   name:'Forum', latin:'Forum Pompeianum', icon:'forum', color:'#c8b088', cells:[[3,8],[4,8],[3,9],[4,9]],
+  {n:1,  color:'gray',   icon:'forum',   name:'Forum', parts:[{name:'Forum', cells:[[3,8,2],[4,8,2]]}],
    fact:'The civic heart of the city. Its Temple of Jupiter was still being repaired from the earthquake of AD 62 when the mountain woke.'},
-  {roman:'II',  name:'Temple of Apollo', latin:'Templum Apollinis', icon:'temple', color:'#cf9061', cells:[[1,8],[1,9]],
-   fact:'One of the oldest sanctuaries in Pompeii. A bronze Apollo, drawing his bow, stood before its colonnade.'},
-  {roman:'III', name:'Basilica', latin:'Basilica', icon:'basilica', color:'#b09d80', cells:[[3,11],[4,11],[5,11]],
-   fact:'Law court and trading hall from the 2nd century BC. Its walls carry some of the oldest graffiti in the city.'},
-  {roman:'IV',  name:'Stabian Baths', latin:'Thermae Stabianae', icon:'baths', color:'#8db3b1', cells:[[7,8],[8,8],[7,9]],
-   fact:'The oldest public baths in town, with separate suites for men and women warmed by hollow hypocaust floors.'},
-  {roman:'V',   name:'House of the Faun', latin:'Domus Fauni', icon:'faun', color:'#cfa64c', cells:[[3,4],[4,4],[3,5]],
+  {n:2,  color:'purple', icon:'faun',    name:'House of the Faun', parts:[{name:'House of the Faun', cells:[[3,4,2],[4,4,2]]}],
    fact:'A mansion filling a whole city block, named for its dancing bronze faun. The Alexander Mosaic covered one floor.'},
-  {roman:'VI',  name:'Large Theatre', latin:'Theatrum Maius', icon:'theatre', color:'#b9826c', cells:[[7,11],[8,11],[9,11]],
-   fact:'About 5,000 spectators sat in tiers built into a natural slope. Awnings shaded them from the summer sun.'},
-  {roman:'VII', name:'Amphitheatre', latin:'Amphitheatrum', icon:'amphi', color:'#ad8a62', cells:[[11,8],[11,9],[11,10],[11,11]],
-   fact:'The oldest surviving stone amphitheatre, built about 70 BC. A riot in AD 59 got its games banned for ten years.'},
-  {roman:'VIII',name:'Macellum', latin:'Macellum', icon:'macellum', color:'#a3b37c', cells:[[1,4],[1,5]],
-   fact:'The covered food market. Fish scales were found in the drain beneath its round central pavilion.'},
-  {roman:'IX',  name:'Bakery of Modestus', latin:'Pistrinum Modesti', icon:'bakery', color:'#cc9461', cells:[[8,4]],
+  {n:3,  color:'purple', icon:'vettii',  name:'Vettii & Golden Cupids', parts:[{name:'House of the Vettii', cells:[[3,1,2]]}, {name:'House of the Golden Cupids', cells:[[5,1,3]]}],
+   fact:'The Vettii brothers were freed slaves who grew rich in trade. Next door, gold-leaf cupids set in glass gave a house its name.'},
+  {n:4,  color:'gray',   icon:'baths',   name:'The Baths', parts:[{name:'Stabian Baths', cells:[[7,8,3]]}, {name:'Forum Baths', cells:[[4,6,2]]}],
+   fact:'Public baths had separate suites for men and women, warmed by hollow hypocaust floors. The Stabian Baths are the oldest in town.'},
+  {n:5,  color:'purple', icon:'vettii',  name:'House of Menander', parts:[{name:'House of Menander', cells:[[9,8,2],[9,9,2]]}],
+   fact:'Named for a painting of the Greek playwright Menander. A chest of 118 silver vessels was found hidden in its cellar.'},
+  {n:6,  color:'turq',   icon:'fullery', name:'Fullery & Macellum', parts:[{name:'Fullery of Stephanus', cells:[[7,5,3]]}, {name:'Macellum', cells:[[9,4,4]]}],
+   fact:'Fullers cleaned cloth by treading it in vats of water and urine. At the Macellum food market, fish scales were found in the drain.'},
+  {n:7,  color:'purple', icon:'faun',    name:'House of the Tragic Poet', parts:[{name:'House of the Tragic Poet', cells:[[1,5,4]]}],
+   fact:'Its doorway mosaic shows a chained dog above the words CAVE CANEM: beware of the dog.'},
+  {n:8,  color:'gray',   icon:'temple',  name:'The Temples', parts:[{name:'Temple of Apollo', cells:[[1,8,3]]}, {name:'Temple of Jupiter', cells:[[3,9,2]]}],
+   fact:'A bronze Apollo, drawing his bow, stood before his colonnade. Jupiter\'s temple closed the north end of the Forum.'},
+  {n:9,  color:'turq',   icon:'bakery',  name:'Bakery of Modestus', parts:[{name:'Bakery of Modestus', cells:[[8,2,4]]}],
    fact:'81 carbonised loaves were found still in its oven, each scored into eight wedges for breaking.'},
-  {roman:'X',   name:'Fullery of Stephanus', latin:'Fullonica Stephani', icon:'fullery', color:'#97a8bd', cells:[[9,8],[9,9]],
-   fact:'Workers cleaned cloth by treading it in vats of water mixed with urine, then bleached it with sulphur smoke.'},
-  {roman:'XI',  name:'House of the Vettii', latin:'Domus Vettiorum', icon:'vettii', color:'#bf7d72', cells:[[3,1],[4,1]],
-   fact:'Home of two freed slaves who grew rich in trade. Its dining rooms are painted with cupids at work.'},
-  {roman:'XII', name:'Temple of Isis', latin:'Iseum', icon:'isis', color:'#a996b9', cells:[[7,10],[8,10]],
-   fact:'Rebuilt after AD 62 by a freedman in the name of his six-year-old son, which won the boy a seat on the town council.'},
+  {n:10, color:'brown',  icon:'theatre', name:'The Theatres', parts:[{name:'Large Theatre', cells:[[8,11,3]]}, {name:'Odeon', cells:[[7,11,2]]}],
+   fact:'The Large Theatre seated about 5,000. The roofed Odeon beside it held around 1,500 for music and recitals.'},
+  {n:11, color:'brown',  icon:'amphi',   name:'Amphitheatre & Barracks', parts:[{name:'Amphitheatre', cells:[[11,9,3]]}, {name:'Gladiators\' Barracks', cells:[[11,11,3]]}],
+   fact:'The oldest surviving stone amphitheatre, built about 70 BC. A riot there in AD 59 got its games banned for ten years.'},
 ];
-const CELLB = new Map();
-BUILD.forEach((b, i) => { b.i = i; b.cells = b.cells.map(([c,r]) => K(c,r)); b.cells.forEach(k => CELLB.set(k, b)); });
-
-const VENTS = [
-  {id:0, name:'Ignis',   gloss:'fire',        origin:K(5,5),  color:'#ff6a2b'},
-  {id:1, name:'Cinis',   gloss:'ash',         origin:K(9,1),  color:'#c9c2b8'},
-  {id:2, name:'Lapilli', gloss:'pumice',      origin:K(1,1),  color:'#e8cc8e'},
-  {id:3, name:'Fumus',   gloss:'smoke',       origin:K(5,10), color:'#a99ccc'},
-  {id:4, name:'Vapor',   gloss:'steam',       origin:K(9,6),  color:'#9fd8e6'},
-  {id:5, name:'Saxum',   gloss:'stone',       origin:K(1,10), color:'#d79a70'},
+const BY_NUM = new Map();
+const CELLINFO = new Map(); // key -> {b, part, cap} for numbered building squares, {neutral:true, cap} for neutral
+BUILD.forEach(b => {
+  BY_NUM.set(b.n, b); b.total = 0;
+  b.parts.forEach((pt, pi) => { pt.id = b.n + (b.parts.length > 1 ? 'ab'[pi] : ''); pt.b = b; pt.keys = [];
+    pt.cells.forEach(([c, r, cap]) => { const k = K(c, r); pt.keys.push(k); b.total += cap; CELLINFO.set(k, {b, part:pt, cap}); });
+    pt.cap = pt.cells.reduce((a, x) => a + x[2], 0); });
+});
+/* Six lava symbols with their "first lava squares". 45 tiles: vase, helmet, mask 7 each; scroll, column, coin 8 each */
+const SYMS = [
+  {id:'vase',   name:'Vase',   count:7, origin:K(1,11), color:'#e9a15a'},
+  {id:'helmet', name:'Helmet', count:7, origin:K(11,5), color:'#d0d4da'},
+  {id:'mask',   name:'Mask',   count:7, origin:K(8,6),  color:'#7fb2ea'},
+  {id:'scroll', name:'Scroll', count:8, origin:K(5,9),  color:'#f0deb0'},
+  {id:'column', name:'Column', count:8, origin:K(5,5),  color:'#f4f1ea'},
+  {id:'coin',   name:'Coin',   count:8, origin:K(4,2),  color:'#f2c14e'},
 ];
-const VENT_AT = new Map(VENTS.map(v => [v.origin, v]));
+const SYM = Object.fromEntries(SYMS.map(s => [s.id, s]));
+const VENT_AT = new Map(SYMS.map(s => [s.origin, s]));
+/* Dual vent variant: 3 double-sided tiles. [EST] which symbol pairs appear on them */
+const DUALS = [['mask','coin'], ['vase','column'], ['helmet','scroll']];
+/* Neutral (beige, unnumbered) buildings: original placement on this map */
+const PLAIN = new Set();
+for (let r = 1; r <= 11; r++) for (let c = 1; c <= 11; c++) {
+  const k = K(c, r); if (ROAD.has(k) || CELLINFO.has(k) || VENT_AT.has(k)) continue;
+  const h = hash(c, r) % 10;
+  if (h < 6) CELLINFO.set(k, {neutral:true, cap:1 + (hash(r, c) % 3), id:'n' + k}); else PLAIN.add(k);
+}
+const capAt = k => CELLINFO.has(k) ? CELLINFO.get(k).cap : 0;
+const bidOf = k => { const i = CELLINFO.get(k); return i.neutral ? i.id : 'b' + i.b.n; }; // "building" for the one-relative-per-building rule
 
-const PORTENTS = [
+const OMENS = [
   {key:'sheep', title:'Six Hundred Sheep', flavor:'Seneca wrote that a flock of six hundred fell dead in the fields of Campania after the great quake.'},
   {key:'springs', title:'The Springs Fall Silent', flavor:'Fountains slow to a trickle and the wells turn foul, as if the mountain were drawing breath.'},
   {key:'birds', title:'The Birds Depart', flavor:'At dawn the swallows rise from the rooftops together and do not return.'},
   {key:'quake', title:'The Ground Shakes', flavor:'Tremors have come for days. Pliny says they caused little alarm, being common in Campania.'},
   {key:'haruspex', title:'The Haruspex Goes Pale', flavor:'The priest lifts the liver from the sacrifice, studies its marks, and will not speak.'},
   {key:'sea', title:'The Sea Draws Back', flavor:'Pliny the Younger saw the sea sucked away from the shore, leaving sea creatures stranded on the sand.'},
+  {key:'quake', title:'Cracks in the Walls', flavor:'Seventeen years after the great quake, scaffolding still stands around half the city.'},
 ];
-const TREMOR = {type:'tremor', title:'The Mountain Splits', date:'Seventh hour of the day · AD 79',
-  flavor:'A cloud rises over Vesuvius in the shape of an umbrella pine: a tall trunk, then branches spreading out across the sky.',
-  effect:'Each household places one lava tile, starting with whoever drew this card. Nobody may flee yet. Settling continues.'};
-const ERUPTION = {type:'eruption', title:'The Last Night', date:'AD 79 · long dated 24 August; a charcoal inscription found in 2018 points to October',
-  flavor:'Pumice falls like hail. Roofs give way under the weight. Those who stay will not see morning.',
-  effect:'The flight begins. Hands are discarded. Each turn: place one lava tile, then move up to two of your citizens.'};
 
-/* =============== SVG art =============== */
+/* ================= Lava symbol glyphs (original drawings) ================= */
+function glyph(sym, s = 1, color = '#000') {
+  const g = {
+    vase:   `<path d="M-3 -9 h6 v2 c0 1 -1 1.5 -1 2.5 c4 1.5 6 5 5 9 c-1 3 -3 4.5 -5 5 h-6 c-2 -.5 -4 -2 -5 -5 c-1 -4 1 -7.5 5 -9 c0 -1 -1 -1.5 -1 -2.5Z" fill="${color}"/><path d="M-4 -5 q-5 0 -5 4 M4 -5 q5 0 5 4" stroke="${color}" stroke-width="1.6" fill="none"/>`,
+    helmet: `<path d="M-8 4 c0 -9 4 -12 8 -12 c4 0 8 3 8 12 v4 h-5 v-5 h-6 v5 h-5Z" fill="${color}"/><path d="M-2 -12 q2 -4 7 -3" stroke="${color}" stroke-width="2.2" fill="none"/>`,
+    mask:   `<path d="M-8 -7 q8 -5 16 0 q1 9 -3 13 q-5 4 -10 0 q-4 -4 -3 -13Z" fill="${color}"/><path d="M-5 -3 q2 -2 4 0 M1 -3 q2 -2 4 0 M-3 4 q3 -2 6 0" stroke="rgba(0,0,0,.55)" stroke-width="1.6" fill="none"/>`,
+    scroll: `<rect x="-6" y="-6" width="12" height="12" fill="${color}"/><rect x="-8" y="-8" width="16" height="3.4" rx="1.7" fill="${color}" stroke="rgba(0,0,0,.35)" stroke-width=".6"/><rect x="-8" y="4.6" width="16" height="3.4" rx="1.7" fill="${color}" stroke="rgba(0,0,0,.35)" stroke-width=".6"/><path d="M-3 -2 h6 M-3 1 h5" stroke="rgba(0,0,0,.45)" stroke-width="1"/>`,
+    column: `<rect x="-7" y="-9" width="14" height="3" fill="${color}"/><rect x="-4" y="-6" width="8" height="12" fill="${color}"/><rect x="-7" y="6" width="14" height="3" fill="${color}"/><path d="M-1.5 -5 v10 M1.5 -5 v10" stroke="rgba(0,0,0,.35)" stroke-width=".8"/>`,
+    coin:   `<circle r="8" fill="${color}"/><circle r="5.6" fill="none" stroke="rgba(0,0,0,.4)" stroke-width="1"/><path d="M-1 -4 q3 0 3 3 q0 2 -2 3 l1 2 h-3 q-2 -2 -1 -4 q-1 -2 2 -4Z" fill="rgba(0,0,0,.4)"/>`,
+  }[sym];
+  return `<g transform="scale(${s})">${g}</g>`;
+}
+function tileSVG(t) {
+  const bg = '<rect x="-12" y="-12" width="24" height="24" fill="#2b2a4a"/><path d="M-12 4 C-6 -2 -2 8 4 0 S10 -6 12 -2 V4 C8 2 4 10 -2 6 S-8 8 -12 10Z M-8 -12 C-6 -6 0 -8 2 -12Z" fill="#e0501c" opacity=".85"/><path d="M-12 6 C-6 0 -2 9 4 2 S10 -4 12 0" stroke="#ffb347" stroke-width=".8" fill="none"/>';
+  if (t.dual) return `<svg viewBox="-12 -12 24 24">${bg}<g transform="translate(-5 -4)">${glyph(t.dual[0], .5, SYM[t.dual[0]].color)}</g><g transform="translate(5 5)">${glyph(t.dual[1], .5, SYM[t.dual[1]].color)}</g><circle cx="8.5" cy="-8.5" r="1.6" fill="#fff"/></svg>`;
+  return `<svg viewBox="-12 -12 24 24">${bg}${glyph(t.sym, .7, SYM[t.sym].color)}</svg>`;
+}
+
+/* ================= Cards ================= */
+function miniMap(b) {
+  let s = `<svg viewBox="0 0 13 13" aria-hidden="true"><rect width="13" height="13" fill="#4b423b"/>`;
+  for (let r = 1; r <= 11; r++) for (let c = 1; c <= 11; c++) {
+    const k = K(c,r), i = CELLINFO.get(k);
+    const f = i && i.b === b ? '#9b2d20' : ROAD.has(k) ? '#6f6a64' : '#e3d3b0';
+    s += `<rect x="${c}" y="${r}" width="1" height="1" fill="${f}"/>`;
+  }
+  GATES.forEach(g => s += `<rect x="${g.c}" y="${g.r}" width="1" height="1" fill="#1b120e"/>`);
+  return s + '</svg>';
+}
+function spaceGroups(b) { return b.parts.map(pt => `<span class="grp">${'<i></i>'.repeat(pt.cap)}</span>`).join(''); }
+function buildingCard(b, attrs = '', cls = '', wild = false) {
+  const col = BCOL[b.color];
+  return `<div class="card ${cls}" style="--bc:${col.hex};--bd:${col.deep}" ${attrs}>
+    <div class="cband"><span class="cnum">${b.n}</span><span class="ckind">${col.name.toUpperCase()}</span>${wild ? '<span class="wild">WILD</span>' : ''}</div>
+    <div class="cart">${ICON[b.icon](col.roof)}</div>
+    <div class="cname">${b.name}</div><div class="clatin">${b.parts.length > 1 ? b.parts.map(p => p.name).join(' · ') : '&nbsp;'}</div>
+    <p class="cfact">${b.fact}</p>
+    <div class="cfoot"><span class="spaces" aria-label="${b.total} spaces, ${b.total} cards">${spaceGroups(b)}</span>${miniMap(b)}</div></div>`;
+}
+function omenCard(o, cls = '') {
+  return `<div class="card pcard ${cls}"><div class="cband"><span class="cnum">☉</span><span class="ckind">OMEN</span></div>
+    <div class="cart">${ICON[o.key]()}</div><div class="cname">${o.title}</div>
+    <p class="cfact" style="font-family:var(--flavor);font-style:italic">${o.flavor}</p>
+    <div class="ceffect"><b>OMEN</b>Throw one rival piece from any building into the volcano. Then draw a replacement card.</div></div>`;
+}
+function adCard(second, cls = '') {
+  return `<div class="card ecard ${cls}"><div class="cband"><span class="cnum">AD 79</span><span class="ckind">${second ? 'ERUPTION' : 'VESUVIUS SEETHES'}</span></div>
+    <div class="cart">${ICON[second ? 'eruption' : 'tremor']()}</div><div class="cname">${second ? 'Vesuvius Erupts!' : 'Vesuvius Seethes'}</div>
+    <p class="cfact" style="font-family:var(--flavor);font-style:italic">${second ? 'Pumice falls like hail and roofs give way. Those who stay will not see morning.' : 'A cloud rises over the mountain in the shape of an umbrella pine.'}</p>
+    <div class="ceffect"><b>${second ? 'SECOND AD 79' : 'FIRST AD 79'}</b>${second ? 'Phase 1 ends. Hands and unplaced pieces go back in the box. Lava starts to flow.' : 'Draw a replacement card. From now on, Omen cards and the Relatives rule apply.'}</div></div>`;
+}
+function cardHTML(card, cls, wild) {
+  if (card.type === 'pompeii') return buildingCard(BY_NUM.get(card.b), '', cls, wild);
+  if (card.type === 'omen') return omenCard(OMENS[card.o], cls);
+  return adCard(card.second, cls);
+}
+
+/* ================= State ================= */
+let S = null, RUN = 0;
+let NET = {mode:'local'};
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+function newState(cfg, opts = {}) {
+  const n = cfg.length, pool = n === 4 ? 25 : 30;
+  const players = cfg.map(c => ({...HOUSES[c.house], hi:c.house, ai:c.ai, remote:!!c.remote, hand:[], escaped:0, lost:0}));
+  const cits = []; let id = 0;
+  players.forEach((p, pi) => { for (let i = 0; i < pool; i++) cits.push({id:id++, p:pi, state:'home', k:null, name: i % 2 ? `${p.f} ${COGF[i % COGF.length]}` : `${PRAE[i % PRAE.length]} ${p.m}`}); });
+  // Draw deck exactly as the rulebook (p.3)
+  const pomp = shuffle(BUILD.flatMap(b => Array.from({length:b.total}, () => ({type:'pompeii', b:b.n}))));
+  const piles = []; for (let i = 0; i < 7; i++) piles.push(pomp.splice(0, 4));
+  const po = shuffle(pomp.concat(OMENS.map((_, i) => ({type:'omen', o:i}))));
+  const bottom = shuffle(po.splice(0, n === 4 ? 10 : 15).concat([{type:'ad79'}]));
+  const deck = piles[0].concat(piles[1], [{type:'ad79'}], po, bottom);
+  players.forEach((p, i) => p.hand = piles[2 + i]);
+  const bag = [].concat(...SYMS.map(s => Array.from({length:s.count}, () => ({sym:s.id}))));
+  if (opts.dual) DUALS.forEach(d => bag.push({dual:d}));
+  return {players, cits, deck, discard:null, bag:shuffle(bag), lava:new Map(), phase:'place', stirred:false, adSeen:0,
+    cur:Math.floor(Math.random() * n), pick:null, tile:null, fresh:null, log:[], over:false, pool, dual:!!opts.dual, lavaPlaced:0};
+}
+const citsAt = k => S.cits.filter(c => c.state === 'board' && c.k === k);
+const boardCits = () => S.cits.filter(c => c.state === 'board');
+const homeCount = pi => S.cits.filter(c => c.p === pi && c.state === 'home').length;
+const hn = pi => `<span class="hn" style="--pc:${S.players[pi].light}">${S.players[pi].gens}</span>`;
+const cn = c => `<span class="hn" style="--pc:${S.players[c.p].light}">${c.name}</span>`;
+const placeName = k => { const i = CELLINFO.get(k); return !i ? 'an open square' : i.neutral ? 'a neutral house' : `${i.part.name} (${i.b.n})`; };
+const manh = (a, b) => { const [x1,y1] = P(a), [x2,y2] = P(b); return Math.abs(x1-x2) + Math.abs(y1-y2); };
+function log(html, ev) { S.log.unshift({html, ev}); if (S.log.length > 150) S.log.pop(); }
+const freeAt = k => capAt(k) - citsAt(k).length;
+
+/* ================= Rules: phase 1 ================= */
+function buildingFreeCells(b) { return b.parts.flatMap(pt => pt.keys).filter(k => freeAt(k) > 0 && !S.lava.has(k)); }
+function anyFreeCells() { return [...CELLINFO.keys()].filter(k => freeAt(k) > 0 && !S.lava.has(k)); }
+function cardOption(pi, card) {
+  const b = BY_NUM.get(card.b);
+  if (!homeCount(pi)) return {cells:[], wild:false, none:true};
+  const own = buildingFreeCells(b);
+  if (own.length) return {cells:own, wild:false};
+  return {cells:anyFreeCells(), wild:true};
+}
+const partPieces = pt => pt.keys.reduce((a, k) => a + citsAt(k).length, 0);
+/* Relatives may go to: a different building of the same colour, the other part of the same building, or a neutral building.
+   Never the same part as the original piece; at most 1 relative per building (and per neutral building) in one move. */
+function relativeTargets(origPart, used) {
+  return [...CELLINFO.keys()].filter(k => {
+    if (freeAt(k) <= 0 || S.lava.has(k)) return false;
+    const i = CELLINFO.get(k);
+    if (i.neutral) return !used.has(i.id);
+    if (i.part === origPart) return false;
+    if (used.has('b' + i.b.n)) return false;
+    return i.b.color === origPart.b.color;
+  });
+}
+function allWild(pi) { const p = S.players[pi]; return p.hand.length > 0 && homeCount(pi) > 0 && p.hand.every(c => !buildingFreeCells(BY_NUM.get(c.b)).length); }
+
+/* ================= Rules: lava and movement ================= */
+const passable = k => { const [c, r] = P(k); return interior(c, r) && !S.lava.has(k) && !VENT_AT.has(k); };
+function distMap(extra) {
+  const ok = k => passable(k) && k !== extra; const d = new Map(), q = [];
+  for (const g of GATES) { if (!ok(g.inner) || d.has(g.inner)) continue; d.set(g.inner, 1); q.push(g.inner); }
+  while (q.length) { const u = q.shift(); const [c,r] = P(u);
+    for (const [dc,dr] of DIRS) { const nk = K(c+dc, r+dr); if (!ok(nk) || d.has(nk)) continue; d.set(nk, d.get(u) + 1); q.push(nk); } }
+  return d;
+}
+/* Move points = number of pieces (any colour) on the starting square. Orthogonal only, no going back over a square.
+   Leaving through a gate costs 1 point. */
+function reachable(k) {
+  const pts = citsAt(k).length; const seen = new Map([[k, 0]]), q = [k], out = new Map();
+  while (q.length) { const u = q.shift(), du = seen.get(u); if (du >= pts) continue; const [c,r] = P(u);
+    for (const [dc,dr] of DIRS) { const nk = K(c+dc, r+dr);
+      if (GATE_BY_KEY.has(nk)) { if (!out.has(nk)) out.set(nk, du + 1); continue; }
+      if (!passable(nk) || seen.has(nk)) continue;
+      seen.set(nk, du + 1); out.set(nk, du + 1); q.push(nk); } }
+  return out;
+}
+function lavaTargets(sym) {
+  const mine = [...S.lava].filter(([, s]) => s === sym).map(([k]) => k);
+  const o = SYM[sym].origin;
+  if (!mine.length) return S.lava.has(o) ? [] : [o];
+  const out = new Set();
+  for (const m of mine) { const [c, r] = P(m); for (const [dc, dr] of DIRS) { const nk = K(c+dc, r+dr), [x, y] = P(nk);
+    if (interior(x, y) && !S.lava.has(nk) && !VENT_AT.has(nk)) out.add(nk); } }
+  return [...out];
+}
+function kill(c, how, by) {
+  c.state = 'lost'; S.players[c.p].lost++;
+  const t = {lava:`is buried by lava on ${placeName(c.k)}`, blocked:`is cut off from every gate and thrown into the volcano`, omen:`is thrown into the volcano by the ${by != null ? S.players[by].gens : 'gods'}`, end:`is still in the city when the last lava falls`}[how];
+  log(`${cn(c)} ${t}.`);
+}
+function removeBlocked() { const d = distMap(); boardCits().filter(c => !d.has(c.k)).forEach(c => kill(c, 'blocked')); }
+function placeLava(k, sym, pi) {
+  S.lava.set(k, sym); S.fresh = k; S.lavaPlaced++;
+  log(`${hn(pi)} place a ${SYM[sym].name} lava tile${VENT_AT.has(k) ? ' on its first lava square' : ''}.`);
+  citsAt(k).forEach(c => kill(c, 'lava')); removeBlocked();
+}
+
+/* ================= Async plumbing ================= */
+function guard(p) { const my = RUN; return p.then(v => my === RUN ? v : new Promise(() => {})); }
+const sleep = ms => guard(new Promise(r => setTimeout(r, REDUCED ? ms * .4 : ms * (window.BOTSPEED || 1))));
+function setPrompt(html) { S.prompt = html; renderPrompt(); }
+/* Every choice a player makes goes through pick(). Specs are plain data so they can be sent to an online player. */
+function pick(spec) {
+  spec.prompt = S.prompt;
+  if (NET.mode === 'host' && S.players[spec.pi].remote) {
+    const seat = spec.pi;
+    return guard(new Promise(res => {
+      NET.pending.set(seat, res); NET.pendingSpec.set(seat, spec);
+      sendTo(seat, {t:'pick', spec});
+      setPrompt(`Waiting for the ${hn(seat)}…`); render();
+    }));
+  }
+  return guard(new Promise(res => { S.pick = {...spec, sel:null, selCid:null, resolve: v => { S.pick = null; res(v); render(); }}; render(); }));
+}
+function showModal(html, btnLabel = 'Continue') {
+  return guard(new Promise(res => {
+    const m = document.getElementById('modal'); m.innerHTML = html + (btnLabel ? `<button class="btn primary" id="mOk">${btnLabel}</button>` : '');
+    m.hidden = false; const ok = document.getElementById('mOk');
+    if (ok) { ok.focus(); ok.onclick = () => { m.hidden = true; m.innerHTML = ''; res(true); }; }
+  }));
+}
+function showLocalCard(html, label, cb) {
+  const m = document.getElementById('modal');
+  m.innerHTML = html + `<button class="btn primary" id="mOk2">${label}</button></div>`; m.hidden = false;
+  document.getElementById('mOk2').onclick = () => { m.hidden = true; m.innerHTML = ''; if (cb) cb(); };
+}
+function showCard(card, pi) {
+  const html = `<div class="mbox cardbox">${cardHTML(card, 'big')}<div class="drawnby">Drawn by the ${hn(pi)}</div>`;
+  if (NET.mode === 'host') {
+    flushBroadcast();
+    for (const [, conn] of NET.conns) conn.send({t:'card', html, pi});
+    if (S.players[pi].remote) { showLocalCard(html, 'Close'); return guard(new Promise(res => NET.acks.set(pi, res))); }
+  }
+  if (window.AUTOCARDS) return sleep(50);
+  return showModal(html, 'Continue');
+}
+
+/* ================= Card art ================= */
 const sv = inner => `<svg viewBox="0 0 100 64" aria-hidden="true">${inner}</svg>`;
 function cols(x0, x1, y0, y1, n, w = 3) { let s = ''; const g = (x1 - x0) / (n - 1); for (let i = 0; i < n; i++) { const x = x0 + i * g; s += `<rect x="${(x - w/2).toFixed(1)}" y="${y0}" width="${w}" height="${y1 - y0}" fill="${COL}"/>`; } return s; }
 const ground = `<path d="M0 58 H100 V64 H0Z" fill="#cdb894"/>`;
@@ -355,347 +587,6 @@ const ICON = {
     <path d="M40 30 C30 10 70 10 60 30" fill="#ff8a2a" opacity=".55"/>${[[18,10],[30,18],[70,14],[82,22],[24,30],[78,32],[56,6],[42,8]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="1.8" fill="#e8d6b4"/>`).join('')}`),
 };
 
-function glyph(vid, s = 1, color = '#000') {
-  const g = {
-    0: `<path d="M0 8 C-6 8 -8 2 -5 -2 C-4 1 -2 1 -2 -1 C-2 -5 1 -7 0 -10 C6 -6 8 0 6 4 C5 7 2 8 0 8Z" fill="${color}"/>`,
-    1: [[-5,-4],[4,-5],[0,1],[-4,6],[5,5],[-7,1]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="1.9" fill="${color}"/>`).join(''),
-    2: `<circle cx="-4" cy="3" r="4" fill="${color}"/><circle cx="4.5" cy="2" r="3.2" fill="${color}"/><circle cx="0" cy="-5" r="2.7" fill="${color}"/>`,
-    3: `<path d="M0 0 a2 2 0 1 1 2 2 a4 4 0 1 1 -4 -4 a6.5 6.5 0 1 1 6.5 6.5" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>`,
-    4: [-5,0,5].map(y => `<path d="M-8 ${y} q2 -3 4 0 t4 0 t4 0 t4 0" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>`).join(''),
-    5: `<path d="M-8 6 L-4 -5 L3 -8 L8 0 L4 7Z" fill="${color}"/>`,
-  }[vid];
-  return `<g transform="scale(${s})">${g}</g>`;
-}
-function tileSVG(v) {
-  return `<svg viewBox="-12 -12 24 24"><defs><radialGradient id="tg${v.id}"><stop offset="0" stop-color="#ffd25a"/><stop offset=".55" stop-color="#ff7a1a"/><stop offset="1" stop-color="#9e1f0a"/></radialGradient></defs>
-    <rect x="-12" y="-12" width="24" height="24" fill="url(#tg${v.id})"/>${glyph(v.id, .85, 'rgba(70,10,2,.75)')}</svg>`;
-}
-function miniMap(b) {
-  let s = `<svg viewBox="0 0 13 13" aria-hidden="true"><rect width="13" height="13" fill="#4b423b"/>`;
-  for (let r = 1; r <= 11; r++) for (let c = 1; c <= 11; c++) {
-    const k = K(c,r); const f = b.cells.includes(k) ? '#9b2d20' : ROAD.has(k) ? '#6f6a64' : '#e3d3b0';
-    s += `<rect x="${c}" y="${r}" width="1" height="1" fill="${f}"/>`;
-  }
-  GATES.forEach(g => s += `<rect x="${g.c}" y="${g.r}" width="1" height="1" fill="#1b120e"/>`);
-  return s + '</svg>';
-}
-
-/* =============== Cards =============== */
-function pips(n) { return `<span class="cpips" aria-label="Holds ${n}">${'<i></i>'.repeat(n)}</span>`; }
-function buildingCard(b, attrs = '', cls = '') {
-  return `<div class="card ${cls}" style="--bc:${b.color}" ${attrs}>
-    <div class="cband"><span class="cnum">${b.roman}</span><span class="ckind">AEDIFICIUM</span>${pips(b.cells.length)}</div>
-    <div class="cart">${ICON[b.icon](b.color)}</div>
-    <div class="cname">${b.name}</div>${b.latin !== b.name ? `<div class="clatin">${b.latin}</div>` : '<div class="clatin">&nbsp;</div>'}
-    <p class="cfact">${b.fact}</p>
-    <div class="cfoot"><span>Shelters ${b.cells.length}</span>${miniMap(b)}</div></div>`;
-}
-function portentCard(p, cls = '') {
-  return `<div class="card pcard ${cls}"><div class="cband"><span class="cnum">☉</span><span class="ckind">PORTENTUM</span></div>
-    <div class="cart">${ICON[p.key]()}</div><div class="cname">${p.title}</div>
-    <p class="cfact" style="font-family:var(--flavor);font-style:italic">${p.flavor}</p>
-    <div class="ceffect"><b>OMEN</b>Cast one rival citizen into the Mountain. Then draw again.</div></div>`;
-}
-function eventCard(e, cls = '') {
-  return `<div class="card ecard ${cls}"><div class="cband"><span class="cnum">AD LXXIX</span><span class="ckind">${e.type === 'tremor' ? 'I' : 'II'}</span></div>
-    <div class="cart">${ICON[e.type]()}</div><div class="cname">${e.title}</div><div class="cdate">${e.date}</div>
-    <p class="cfact" style="font-family:var(--flavor);font-style:italic">${e.flavor}</p>
-    <div class="ceffect"><b>${e.type === 'tremor' ? 'TREMOR' : 'ERUPTION'}</b>${e.effect}</div></div>`;
-}
-function cardHTML(card, cls) {
-  if (card.type === 'building') return buildingCard(BUILD[card.b], '', cls);
-  if (card.type === 'portent') return portentCard(PORTENTS[card.p], cls);
-  return eventCard(card.type === 'tremor' ? TREMOR : ERUPTION, cls);
-}
-
-/* =============== State =============== */
-let S = null, RUN = 0;
-let NET = {mode:'local'};
-const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const POOL = 9;
-
-function newState(cfg) {
-  const n = cfg.length;
-  const players = cfg.map((c, i) => ({...HOUSES[c.house], hi:c.house, ai:c.ai, remote:!!c.remote, hand:[], escaped:0, lost:0}));
-  const cits = []; let id = 0;
-  players.forEach((p, pi) => {
-    const prae = shuffle(PRAE.slice()), cog = shuffle(COGF.slice());
-    for (let i = 0; i < POOL; i++) cits.push({id:id++, p:pi, state:'home', k:null, name: i % 2 ? `${p.f} ${cog[i]}` : `${prae[i]} ${p.m}`});
-  });
-  const bcards = shuffle([].concat(...BUILD.map(b => [0,1,2].map(() => ({type:'building', b:b.i})))));
-  players.forEach(p => { p.hand = bcards.splice(0, 4); });
-  const nPort = Math.min(6, n + 1);
-  const portents = shuffle(PORTENTS.map((_, i) => ({type:'portent', p:i}))).slice(0, nPort);
-  const mid = shuffle(bcards.splice(0, 7 * n - nPort).concat(portents));
-  const deck = mid.slice(0, 4 * n).concat([{type:'tremor'}], mid.slice(4 * n), [{type:'eruption'}]);
-  const lavaDeck = shuffle([].concat(...VENTS.map(v => Array(7).fill(v.id))));
-  return {players, cits, deck, lavaDeck, lava:new Map(), phase:'place', stirred:false, cur:Math.floor(Math.random()*n), pick:null, tile:null, fresh:null, log:[], over:false};
-}
-
-const citsAt = k => S.cits.filter(c => c.state === 'board' && c.k === k);
-const boardCits = () => S.cits.filter(c => c.state === 'board');
-const homeCount = pi => S.cits.filter(c => c.p === pi && c.state === 'home').length;
-const hn = pi => `<span class="hn" style="--pc:${S.players[pi].light}">${S.players[pi].gens}</span>`;
-const cn = c => `<span class="hn" style="--pc:${S.players[c.p].light}">${c.name}</span>`;
-const placeName = k => CELLB.has(k) ? `the ${CELLB.get(k).name}` : ROAD.has(k) ? 'a paved road' : 'a side street';
-const manh = (a, b) => { const [x1,y1] = P(a), [x2,y2] = P(b); return Math.abs(x1-x2) + Math.abs(y1-y2); };
-function log(html, ev) { S.log.unshift({html, ev}); if (S.log.length > 120) S.log.pop(); }
-
-/* =============== Geometry =============== */
-function distMap(extra) {
-  const L = k => S.lava.has(k) || k === extra; const d = new Map(), q = [];
-  for (const g of GATES) { if (L(g.inner) || d.has(g.inner)) continue; d.set(g.inner, 1); q.push(g.inner); }
-  while (q.length) { const u = q.shift(); const [c,r] = P(u);
-    for (const [dc,dr] of DIRS) { const nc = c+dc, nr = r+dr, nk = K(nc,nr); if (!interior(nc,nr) || L(nk) || d.has(nk)) continue; d.set(nk, d.get(u)+1); q.push(nk); } }
-  return d;
-}
-function reachable(k) {
-  const steps = ROAD.has(k) ? 3 : 2; const seen = new Map([[k,0]]), q = [k], out = new Map();
-  while (q.length) { const u = q.shift(), du = seen.get(u); if (du >= steps) continue; const [c,r] = P(u);
-    for (const [dc,dr] of DIRS) { const nc = c+dc, nr = r+dr, nk = K(nc,nr);
-      if (GATE_BY_KEY.has(nk)) { if (!out.has(nk)) out.set(nk, du+1); continue; }
-      if (!interior(nc,nr) || S.lava.has(nk) || seen.has(nk)) continue;
-      seen.set(nk, du+1); out.set(nk, du+1); q.push(nk); } }
-  return out;
-}
-function legalLava(v) {
-  const mine = [...S.lava].filter(([, id]) => id === v.id).map(([k]) => k);
-  if (!mine.length && !S.lava.has(v.origin)) return [v.origin];
-  const seeds = mine.length ? mine : [v.origin]; const out = new Set();
-  for (const s of seeds) { const [c,r] = P(s); for (const [dc,dr] of DIRS) { const nk = K(c+dc, r+dr); if (interior(c+dc, r+dr) && !S.lava.has(nk)) out.add(nk); } }
-  return [...out];
-}
-function frontier() { const f = new Set(); VENTS.forEach(v => legalLava(v).forEach(k => f.add(k))); return f; }
-function legalPlacement(b) {
-  const free = k => !S.lava.has(k) && !citsAt(k).length;
-  let cells = b.cells.filter(free); if (cells.length) return {cells, overflow:false};
-  cells = BUILD.flatMap(x => x.cells).filter(free); if (cells.length) return {cells, overflow:true};
-  cells = []; for (let r = 1; r <= 11; r++) for (let c = 1; c <= 11; c++) if (free(K(c,r))) cells.push(K(c,r));
-  return {cells, overflow:true};
-}
-function bonusCells() { return legalPlacement({cells:[]}).cells; }
-
-/* =============== Actions =============== */
-function placeCit(pi, k, note) {
-  const c = S.cits.find(x => x.p === pi && x.state === 'home'); if (!c) return;
-  c.state = 'board'; c.k = k; log(`${cn(c)} settles in ${placeName(k)}${note ? ' ' + note : ''}.`);
-}
-function kill(c, how, by) {
-  c.state = 'lost'; S.players[c.p].lost++;
-  const t = {lava:`is swallowed by the lava at ${placeName(c.k)}`, entomb:`is cut off from every gate and entombed`, portent:`is cast into the Mountain by the ${by != null ? S.players[by].gens : 'gods'}`, surge:`is caught in the final surge`}[how];
-  log(`${cn(c)} ${t}.`);
-}
-function entomb() { const d = distMap(); boardCits().filter(c => !d.has(c.k)).forEach(c => kill(c, 'entomb')); }
-function placeLava(k, v, pi) {
-  S.lava.set(k, v.id); S.fresh = k;
-  log(`${hn(pi)} pour ${v.name} lava onto ${placeName(k)}.`);
-  citsAt(k).forEach(c => kill(c, 'lava')); entomb();
-}
-function moveCit(c, dest) {
-  const g = GATE_BY_KEY.get(dest);
-  if (g) { c.state = 'escaped'; c.k = null; S.players[c.p].escaped++; log(`${cn(c)} escapes through the <b>${g.name}</b>.`); }
-  else c.k = dest;
-}
-
-/* =============== Async plumbing =============== */
-function guard(p) { const my = RUN; return p.then(v => my === RUN ? v : new Promise(() => {})); }
-const sleep = ms => guard(new Promise(r => setTimeout(r, REDUCED ? ms * .4 : ms)));
-function pick(spec) {
-  spec.prompt = S.prompt;
-  if (NET.mode === 'host' && S.players[spec.pi].remote) {
-    const seat = spec.pi;
-    return guard(new Promise(res => {
-      NET.pending.set(seat, v => res(spec.kind === 'move' ? (v ? {cit:S.cits.find(c => c.id === v.cid), dest:v.dest} : null) : v));
-      NET.pendingSpec.set(seat, spec);
-      sendTo(seat, {t:'pick', spec:{kind:spec.kind, pi:seat, cells:[...spec.cells], discard:!!spec.discard, moved:spec.moved ? [...spec.moved] : [], prompt:spec.prompt}});
-      setPrompt(`Waiting for the ${hn(seat)}…`); render();
-    }));
-  }
-  return guard(new Promise(res => { S.pick = {...spec, resolve: v => { S.pick = null; res(v); render(); }}; render(); }));
-}
-function setPrompt(html) { S.prompt = html; renderPrompt(); }
-function showModal(html, btnLabel = 'Continue', extra) {
-  return guard(new Promise(res => {
-    const m = document.getElementById('modal'); m.innerHTML = html + (btnLabel ? `<button class="btn primary" id="mOk">${btnLabel}</button>` : '');
-    m.hidden = false; const ok = document.getElementById('mOk');
-    if (extra) extra(m, v => { m.hidden = true; res(v); });
-    if (ok) { ok.focus(); ok.onclick = () => { m.hidden = true; m.innerHTML = ''; res(true); }; }
-  }));
-}
-function showCard(card, pi) {
-  const html = `<div class="mbox cardbox">${cardHTML(card, 'big')}<div class="drawnby">Drawn by the ${hn(pi)}</div>`;
-  if (NET.mode === 'host') {
-    flushBroadcast();
-    for (const [, conn] of NET.conns) conn.send({t:'card', html, pi});
-    if (S.players[pi].remote) { showLocalCard(html, 'Close'); return guard(new Promise(res => NET.acks.set(pi, res))); }
-  }
-  return showModal(html, 'Continue');
-}
-function showLocalCard(html, label, cb) {
-  const m = document.getElementById('modal');
-  m.innerHTML = html + `<button class="btn primary" id="mOk2">${label}</button></div>`; m.hidden = false;
-  document.getElementById('mOk2').onclick = () => { m.hidden = true; m.innerHTML = ''; if (cb) cb(); };
-}
-
-/* =============== Game loop =============== */
-async function gameLoop() {
-  const n = S.players.length; let lastHuman = -1;
-  const humans = S.players.filter(p => !p.ai).length;
-  log(`The households of Pompeii go about an ordinary day. The ${S.players[S.cur].gens} move first.`, true); render();
-  while (!S.over) {
-    const pi = S.cur, p = S.players[pi];
-    if (NET.mode === 'local' && !p.ai && humans > 1 && lastHuman !== pi) {
-      S.handoff = true; render();
-      await showModal(`<div class="mbox"><h2>Pass to the ${p.gens}</h2><p>Hand the device to the player of the ${hn(pi)}. Other players look away.</p>`, `I am the ${p.gens}`);
-      S.handoff = false; lastHuman = pi;
-    }
-    if (p.ai) setPrompt(`The ${hn(pi)} are deciding…`);
-    if (S.phase === 'place') await placeTurn(pi);
-    else await flightTurn(pi);
-    render();
-    if (S.phase === 'flight' && (!boardCits().length || !S.lavaDeck.length)) {
-      if (boardCits().length) { log('The last of the lava pours over the city.', true); boardCits().forEach(c => kill(c, 'surge')); }
-      S.over = true;
-    }
-    S.cur = (S.cur + 1) % n;
-  }
-  S.phase = 'over'; render(); gameOver();
-}
-
-async function placeTurn(pi) {
-  const p = S.players[pi]; const home = homeCount(pi); let choice;
-  if (p.ai) { await sleep(750); choice = aiPlacement(pi); }
-  else {
-    setPrompt(home ? `Your turn. Tap a card, then a <b>glowing square</b> in that building to place a citizen.` : `Your whole household is in the city. Tap a card to discard it.`);
-    choice = await pick({kind:'place', pi, sel:null, cells:new Set(), discard:!home});
-  }
-  const card = p.hand.splice(choice.idx, 1)[0], b = BUILD[card.b];
-  if (choice.k == null) log(`${hn(pi)} discard the ${b.name}.`);
-  else {
-    const own = b.cells.includes(choice.k);
-    const occ = own ? b.cells.filter(x => citsAt(x).length).length : 0;
-    placeCit(pi, choice.k, own ? '' : `(the ${b.name} was full)`);
-    const bonus = Math.min(occ, 2, homeCount(pi));
-    if (bonus > 0) log(`Kinship: relatives in the ${b.name} take in ${bonus} more of the ${hn(pi)}.`);
-    render();
-    for (let i = 0; i < bonus; i++) {
-      const cells = bonusCells(); if (!cells.length) break; let k;
-      if (p.ai) { await sleep(450); k = aiBestCell(cells, pi); }
-      else { setPrompt(`<b>Kinship!</b> Your citizen found relatives in the ${b.name}. Place ${bonus - i} more on any glowing building square.`); k = await pick({kind:'cell', pi, cells:new Set(cells)}); }
-      placeCit(pi, k, '(kinship)'); render();
-    }
-  }
-  while (S.deck.length) {
-    const c = S.deck.shift();
-    if (c.type === 'building') { p.hand.push(c); break; }
-    if (c.type === 'portent') {
-      await showCard(c, pi);
-      const targets = boardCits().filter(x => x.p !== pi);
-      if (!targets.length) { log(`${PORTENTS[c.p].title}: no rival is in the city to suffer it.`, true); continue; }
-      let k;
-      if (p.ai) { await sleep(500); k = aiPortent(pi, targets).k; }
-      else { setPrompt(`<b>${PORTENTS[c.p].title}.</b> Tap a rival citizen to cast into the Mountain.`); k = await pick({kind:'cell', pi, cells:new Set(targets.map(x => x.k))}); }
-      kill(citsAt(k).find(x => x.p !== pi), 'portent', pi); render(); continue;
-    }
-    if (c.type === 'tremor') {
-      await showCard(c, pi); S.stirred = true; log('AD 79. The mountain splits open.', true); render();
-      for (let j = 0; j < S.players.length; j++) await lavaStep((pi + j) % S.players.length);
-      continue;
-    }
-    if (c.type === 'eruption') {
-      await showCard(c, pi); S.phase = 'flight'; S.players.forEach(x => x.hand = []);
-      log('Night falls under the ash. The flight from Pompeii begins.', true); return;
-    }
-  }
-}
-
-async function lavaStep(pi) {
-  const p = S.players[pi]; if (!S.lavaDeck.length) return;
-  const v = VENTS[S.lavaDeck.shift()]; S.tile = {v, pi}; render();
-  const cells = legalLava(v);
-  if (!cells.length) { log(`The ${v.name} flow is walled in. Its tile is set aside.`); await sleep(600); S.tile = null; return; }
-  let k;
-  if (p.ai) { setPrompt(`The ${hn(pi)} drew a <b>${v.name}</b> tile.`); await sleep(800); k = aiLava(pi, v, cells); }
-  else { setPrompt(`You drew <b>${v.name}</b> (${v.gloss}). Place it on a glowing square${S.lava.size && [...S.lava.values()].includes(v.id) ? `, touching the ${v.name} flow` : ` over its crater`}.`); k = await pick({kind:'cell', pi, cells:new Set(cells)}); }
-  placeLava(k, v, pi); S.tile = null; render(); await sleep(300);
-}
-
-async function flightTurn(pi) {
-  const p = S.players[pi];
-  if (!S.lavaDeck.length) return;
-  await lavaStep(pi);
-  if (S.players.length === 2 && S.lavaDeck.length && boardCits().length) await lavaStep(pi);
-  if (!boardCits().length) return;
-  const mine = () => boardCits().filter(c => c.p === pi);
-  if (!mine().length) { log(`${hn(pi)} have no one left in the city, but the mountain answers to them still.`); await sleep(300); return; }
-  const moved = new Set();
-  for (let m = 0; m < 2; m++) {
-    if (!mine().some(c => !moved.has(c.id))) break; let mv;
-    if (p.ai) { await sleep(650); mv = aiMove(pi, moved); if (!mv) break; }
-    else {
-      setPrompt(`${m === 0 ? 'Move up to two citizens.' : 'Move one more citizen, or end your turn.'} Tap one of yours, then a glowing square. Paved roads let a citizen run 3 squares, side streets 2.`);
-      mv = await pick({kind:'move', pi, moved, sel:null, cells:new Set()}); if (!mv) break;
-    }
-    moveCit(mv.cit, mv.dest); moved.add(mv.cit.id); render();
-  }
-}
-
-/* =============== AI =============== */
-function threatAt(k, front) { let m = 99; for (const f of front) m = Math.min(m, manh(k, f)); return Math.max(0, 4 - m) + (front.has(k) ? 3 : 0); }
-function ventNear(k) { let t = 0; VENTS.forEach(v => t += Math.max(0, 3 - manh(k, v.origin))); return t; }
-function cellScore(k, d) { return 12 - (d.get(k) ?? 15) * 1.2 + (ROAD.has(k) ? .6 : 0) - ventNear(k) * 1.4 + Math.random(); }
-function aiPlacement(pi) {
-  const p = S.players[pi], d = distMap(), home = homeCount(pi); let best = null;
-  p.hand.forEach((card, idx) => {
-    const b = BUILD[card.b];
-    if (!home) { const sc = Math.random(); if (!best || sc > best.sc) best = {sc, idx, k:null}; return; }
-    const L = legalPlacement(b), occ = b.cells.filter(x => citsAt(x).length).length;
-    for (const k of L.cells) { let sc = cellScore(k, d); if (!L.overflow) sc += Math.min(occ, 2, home - 1) * 3.2; if (!best || sc > best.sc) best = {sc, idx, k}; }
-  });
-  return best;
-}
-function aiBestCell(cells, pi) { const d = distMap(); let best = null; for (const k of cells) { const sc = cellScore(k, d); if (!best || sc > best.sc) best = {sc, k}; } return best.k; }
-function aiPortent(pi, targets) {
-  const d = distMap(); let best = null;
-  for (const c of targets) { const o = S.players[c.p]; const strength = o.escaped + boardCits().filter(x => x.p === c.p).length;
-    const sc = 15 - (d.get(c.k) ?? 15) + strength * .5 + Math.random() * 2; if (!best || sc > best.sc) best = {sc, k:c.k}; }
-  return best;
-}
-function aiLava(pi, v, cells) {
-  const base = distMap(), bc = boardCits(); let best = null;
-  for (const k of cells) {
-    let sc = Math.random() * .8; const d2 = distMap(k);
-    for (const c of bc) { const w = c.p !== pi ? 1 : -1.4;
-      if (c.k === k) { sc += w * 10; continue; }
-      if (!d2.has(c.k)) { sc += w * 8; continue; }
-      sc += w * (d2.get(c.k) - (base.get(c.k) ?? d2.get(c.k))) * 1.5;
-      const m = manh(c.k, k); if (m <= 2) sc += w * (3 - m) * .8; }
-    if (!best || sc > best.sc) best = {sc, k};
-  }
-  return best.k;
-}
-function aiMove(pi, moved) {
-  const d = distMap(), front = frontier(); let best = null;
-  for (const c of boardCits().filter(c => c.p === pi && !moved.has(c.id))) {
-    const here = d.get(c.k) ?? 99, thr = threatAt(c.k, front);
-    for (const [dest] of reachable(c.k)) {
-      let sc;
-      if (GATE_BY_KEY.has(dest)) sc = 100 + thr * 3;
-      else sc = (here - (d.get(dest) ?? 99)) * 3 + thr * 2 - threatAt(dest, front) * 2.5 + (ROAD.has(dest) ? .8 : 0);
-      sc += Math.random() * .3;
-      if (!best || sc > best.sc) best = {sc, cit:c, dest};
-    }
-  }
-  return best && best.sc > .5 ? best : null;
-}
-
-/* =============== Rendering =============== */
-function hash(c, r) { return ((c * 73856093) ^ (r * 19349663)) >>> 0; }
-function pawn(x, y, s, color) {
-  return `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cx="0" cy="9.5" rx="6.5" ry="1.8" fill="rgba(0,0,0,.35)"/><path d="M-6.5 9 Q-6.5 -2 0 -2 Q6.5 -2 6.5 9Z" fill="${color}" stroke="#120b08" stroke-width="1.3"/><circle cx="0" cy="-6.5" r="4.6" fill="${color}" stroke="#120b08" stroke-width="1.3"/><circle cx="-1.5" cy="-8" r="1.4" fill="rgba(255,255,255,.55)"/></g>`;
-}
-const SPOTS = {1:[[0,0]], 2:[[-7,1],[7,1]], 3:[[-8,4],[8,4],[0,-5]], 4:[[-7,-5],[7,-5],[-7,6],[7,6]]};
-const SCALE = {1:1.05, 2:.82, 3:.72, 4:.62};
 
 /* ---- Static scenery (countryside, trees), generated once ---- */
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
@@ -730,8 +621,6 @@ const SCENERY = (() => {
 })();
 
 /* ---- Building art, drawn top-down inside each building's own squares ---- */
-function bbox(b) { const ps = b.cells.map(P); const xs = ps.map(p => p[0]), ys = ps.map(p => p[1]);
-  const x0 = Math.min(...xs) * CS, y0 = Math.min(...ys) * CS; return {x:x0, y:y0, w:(Math.max(...xs) + 1) * CS - x0, h:(Math.max(...ys) + 1) * CS - y0}; }
 function colonnade(x, y, w, h, step = 6) { let s = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="rgba(60,40,20,.45)" stroke-width="1"/>`;
   for (let t = 0; t <= w; t += step) s += `<circle cx="${x + t}" cy="${y}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/><circle cx="${x + t}" cy="${y + h}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/>`;
   for (let t = step; t < h; t += step) s += `<circle cx="${x}" cy="${y + t}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/><circle cx="${x + w}" cy="${y + t}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/>`;
@@ -740,43 +629,6 @@ function roof(x, y, w, h, c, alongX = w >= h) {
   return `<rect x="${x + 2}" y="${y + 2.5}" width="${w}" height="${h}" fill="rgba(0,0,0,.28)"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}" stroke="#4a2a18" stroke-width=".9"/>` +
     (alongX ? `<rect x="${x}" y="${y}" width="${w}" height="${h/2}" fill="rgba(255,255,255,.13)"/><path d="M${x} ${y + h/2} h${w}" stroke="#4a2a18" stroke-width=".9"/>`
             : `<rect x="${x}" y="${y}" width="${w/2}" height="${h}" fill="rgba(255,255,255,.13)"/><path d="M${x + w/2} ${y} v${h}" stroke="#4a2a18" stroke-width=".9"/>`);
-}
-function buildingArt(b) {
-  const {x, y, w, h} = bbox(b), c = b.color, T = '#b8603b';
-  const cx = x + w/2, cy = y + h/2; let s = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#e7dcc4"/>`;
-  switch (b.icon) {
-    case 'forum':
-      s += `<rect x="${x+6}" y="${y+6}" width="${w-12}" height="${h-12}" fill="#efe6d2"/>${colonnade(x+6, y+6, w-12, h-12, 6.8)}${roof(cx-10, y+10, 20, 24, c, false)}<path d="M${cx-10} ${y+34} h20 v4 h-20Z" fill="#d8ccb2" stroke="#6b5a45" stroke-width=".6"/>`;
-      [[x+20,y+56],[x+60,y+56],[x+40,y+66]].forEach(([a,bq]) => s += `<rect x="${a-2}" y="${bq-2}" width="4" height="4" fill="#bdb09a"/>`); break;
-    case 'temple': case 'isis': {
-      s += `<rect x="${x+4}" y="${y+4}" width="${w-8}" height="${h-8}" fill="#ece2cc"/>${colonnade(x+4, y+4, w-8, h-8, 6)}`;
-      const vert = h > w, tw = vert ? 18 : 30, th = vert ? 30 : 18;
-      s += roof(cx - tw/2, cy - th/2, tw, th, c, !vert) + `<circle cx="${vert ? cx : cx + 22}" cy="${vert ? cy + 26 : cy}" r="3" fill="#a69a86" stroke="#6b5a45" stroke-width=".6"/>`; break; }
-    case 'basilica':
-      s += roof(x+5, y+7, w-10, h-14, c, true) + `<rect x="${x+20}" y="${y+14}" width="${w-40}" height="${h-28}" fill="rgba(255,255,255,.18)" stroke="#4a2a18" stroke-width=".6"/>`; break;
-    case 'baths':
-      b.cells.forEach((k, i) => { const [a, bq] = P(k), X = a*CS, Y = bq*CS;
-        if (i === 2) s += `<rect x="${X+5}" y="${Y+5}" width="30" height="30" fill="#9cbf72"/><rect x="${X+10}" y="${Y+12}" width="20" height="14" fill="#7fb7c8" stroke="#4d8191" stroke-width=".8"/>`;
-        else s += roof(X+4, Y+4, 32, 32, c) + `<circle cx="${X+20}" cy="${Y+20}" r="9" fill="${c}" stroke="#4a2a18" stroke-width=".9"/><circle cx="${X+17}" cy="${Y+17}" r="4" fill="rgba(255,255,255,.35)"/><circle cx="${X+20}" cy="${Y+20}" r="1.8" fill="#3b2c22"/>`; }); break;
-    case 'faun': case 'vettii':
-      b.cells.forEach((k, i) => { const [a, bq] = P(k), X = a*CS, Y = bq*CS;
-        if (i === b.cells.length - 1) s += `<rect x="${X+3}" y="${Y+3}" width="34" height="34" fill="#93b86a"/>${colonnade(X+6, Y+6, 28, 28, 5.6)}<circle cx="${X+20}" cy="${Y+20}" r="3.5" fill="#7fb7c8" stroke="#4d8191" stroke-width=".7"/>`;
-        else s += `<rect x="${X+5}" y="${Y+5.5}" width="32" height="32" fill="rgba(0,0,0,.28)"/><path d="M${X+3} ${Y+3} h34 v34 h-34Z M${X+14} ${Y+14} v12 h12 v-12Z" fill="${T}" fill-rule="evenodd" stroke="#4a2a18" stroke-width=".9"/><rect x="${X+16}" y="${Y+16}" width="8" height="8" fill="#7fb7c8"/><rect x="${X+3}" y="${Y+3}" width="34" height="34" fill="none" stroke="${c}" stroke-width="2.5"/>`; });
-      if (b.icon === 'faun') { const [a, bq] = P(b.cells[0]); s += `<circle cx="${a*CS+20}" cy="${bq*CS+20}" r="1.6" fill="#8a6a2c"/>`; } break;
-    case 'theatre':
-      for (let r = 52, i = 0; r >= 18; r -= 8, i++) s += `<path d="M${cx - r} ${y + h - 6} A${r} ${r * .62} 0 0 1 ${cx + r} ${y + h - 6}Z" fill="${i % 2 ? c : '#e3cfa6'}" stroke="#5a3f2c" stroke-width=".7"/>`;
-      s += `<rect x="${cx - 40}" y="${y + h - 8}" width="80" height="6" fill="#bfae93" stroke="#5a3f2c" stroke-width=".7"/>`; break;
-    case 'amphi':
-      s += `<ellipse cx="${cx + 2}" cy="${cy + 3}" rx="${w/2 - 2}" ry="${h/2 - 4}" fill="rgba(0,0,0,.28)"/><ellipse cx="${cx}" cy="${cy}" rx="${w/2 - 2}" ry="${h/2 - 4}" fill="${c}" stroke="#4a2a18"/>` +
-        `<ellipse cx="${cx}" cy="${cy}" rx="${w/2 - 7}" ry="${h/2 - 14}" fill="#c99d6f" stroke="#6b4a30" stroke-width=".6"/><ellipse cx="${cx}" cy="${cy}" rx="${w/2 - 12}" ry="${h/2 - 30}" fill="#ead6a8" stroke="#4a2a18"/>`; break;
-    case 'macellum':
-      s += `<rect x="${x+4}" y="${y+4}" width="${w-8}" height="${h-8}" fill="#ece2cc"/>${roof(x+4, y+4, w-8, 10, T)}${roof(x+4, y+h-14, w-8, 10, T)}<circle cx="${cx}" cy="${cy}" r="9" fill="${c}" stroke="#4a2a18"/>${[0,60,120,180,240,300].map(a => `<circle cx="${(cx + Math.cos(a*Math.PI/180)*9).toFixed(1)}" cy="${(cy + Math.sin(a*Math.PI/180)*9).toFixed(1)}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/>`).join('')}`; break;
-    case 'bakery':
-      s += roof(x+3, y+3, 34, 15, T) + `<circle cx="${x+12}" cy="${y+29}" r="5" fill="#6e6863" stroke="#3b3632"/><circle cx="${x+12}" cy="${y+29}" r="1.5" fill="#3b3632"/><circle cx="${x+28}" cy="${y+29}" r="6.5" fill="${c}" stroke="#4a2a18"/><path d="M${x+21.5} ${y+29} h13 M${x+28} ${y+22.5} v13" stroke="#4a2a18" stroke-width=".7"/>`; break;
-    case 'fullery':
-      s += roof(x+3, y+3, w-6, 16, T) + [y+32, y+48, y+64].map(v => `<circle cx="${cx}" cy="${v}" r="6" fill="#bcd2d8" stroke="#4a5a60" stroke-width="1.2"/>`).join('') + `<rect x="${x+3}" y="${y+22}" width="${w-6}" height="${h-25}" fill="none" stroke="${c}" stroke-width="2.5"/>`; break;
-  }
-  return s;
 }
 function insula(c, r) {
   const x = c*CS, y = r*CS, h = hash(c, r), roofC = ['#c0643a', '#b5583a', '#c9774b', '#ad5a3c'][h % 4];
@@ -791,115 +643,377 @@ function insula(c, r) {
   return s;
 }
 
+
+/* ================= Game loop ================= */
+async function gameLoop() {
+  const n = S.players.length; let lastHuman = -1;
+  const humans = S.players.filter(p => !p.ai).length;
+  log(`The citizens of Pompeii begin their daily work. The ${S.players[S.cur].gens} play first.`, true); render();
+  const handoff = async pi => {
+    const p = S.players[pi];
+    if (NET.mode === 'local' && !p.ai && humans > 1 && lastHuman !== pi) {
+      S.handoff = true; render();
+      await showModal(`<div class="mbox"><h2>Pass to the ${p.gens}</h2><p>Hand the device to the player of the ${hn(pi)}. Other players look away.</p>`, `I am the ${p.gens}`);
+      S.handoff = false; lastHuman = pi;
+    }
+  };
+  // Phase 1
+  let trigger = null;
+  while (S.phase === 'place') {
+    const pi = S.cur; await handoff(pi);
+    if (S.players[pi].ai) setPrompt(`The ${hn(pi)} are deciding…`);
+    trigger = await placeTurn(pi);
+    render();
+    if (trigger != null) break;
+    S.cur = (S.cur + 1) % n;
+  }
+  // Vesuvius erupts: 6 lava tiles, starting with the left-hand neighbour of the player who triggered it
+  S.phase = 'erupting'; S.players.forEach(p => p.hand = []);
+  S.cits.filter(c => c.state === 'home').forEach(c => c.state = 'out');
+  log('Vesuvius erupts! Hands and unplaced pieces go back in the box.', true);
+  let q = (trigger + 1) % n;
+  while (S.lavaPlaced < 6 && S.bag.length) { await handoff(q); await lavaStep(q); if (S.lavaPlaced >= 6) break; q = (q + 1) % n; }
+  // Phase 2: left-hand neighbour of the player who placed the 6th tile begins
+  S.phase = 'flight'; S.cur = (q + 1) % n;
+  log('Run for your lives! The flight from Pompeii begins.', true); render();
+  while (!S.over) {
+    if (!boardCits().length) { S.over = true; break; }
+    const pi = S.cur; await handoff(pi);
+    if (S.players[pi].ai) setPrompt(`The ${hn(pi)} are deciding…`);
+    await flightTurn(pi); render();
+    if (!S.bag.length || !boardCits().length) {
+      if (boardCits().length) { log('The last lava tile has been drawn. Everyone still in the city is lost.', true); boardCits().forEach(c => kill(c, 'end')); }
+      S.over = true;
+    }
+    S.cur = (S.cur + 1) % n;
+  }
+  S.phase = 'over'; S.tile = null; render(); gameOver();
+}
+
+/* One turn of phase 1. Returns the seat that triggered the eruption, or null. */
+async function placeTurn(pi) {
+  const p = S.players[pi];
+  const opts = p.hand.map(c => cardOption(pi, c));
+  const canErupt = allWild(pi);
+  let ch;
+  if (p.ai) { await sleep(700); ch = aiPlacement(pi, opts, canErupt); }
+  else {
+    const home = homeCount(pi);
+    setPrompt(!home ? 'All your pieces are in the city. Tap a card to discard it.'
+      : `Your turn. Tap a card, then a <b>glowing space</b> in that building.${opts.some(o => o.wild) ? ' A card marked WILD can go in any free space in any building.' : ''}`);
+    ch = await pick({kind:'place', pi, cardOpts:opts.map(o => ({cells:o.cells, wild:o.wild})), buttons: canErupt ? [{label:'The volcano erupts!', value:'erupt'}] : []});
+  }
+  if (ch === 'erupt') {
+    log(`${hn(pi)} have only wild cards and call out: "The volcano erupts!"`, true);
+    await showModal(`<div class="mbox"><h2>"The volcano erupts!"</h2><p>The ${hn(pi)} show their hand: every card is for a building that is already full. The eruption begins now.</p><div class="row-btns" style="margin:10px 0">${p.hand.map(c => cardHTML(c, '', true)).join('')}</div>`);
+    return pi;
+  }
+  const card = p.hand.splice(ch.idx, 1)[0], b = BY_NUM.get(card.b), o = opts[ch.idx];
+  S.discard = card;
+  if (ch.k == null) log(`${hn(pi)} discard a ${b.n} card.`);
+  else {
+    const info = CELLINFO.get(ch.k), part = info.neutral ? null : info.part;
+    const before = (!o.wild && part) ? partPieces(part) : 0;
+    const c = S.cits.find(x => x.p === pi && x.state === 'home'); c.state = 'board'; c.k = ch.k;
+    log(`${cn(c)} moves into ${placeName(ch.k)}${o.wild ? ' (wild card)' : ''}.`);
+    render();
+    // Relatives (only after the first AD 79 card, never from a wild card)
+    if (S.stirred && !o.wild && before > 0) {
+      const used = new Set(); let placed = 0;
+      for (let i = 0; i < before && homeCount(pi); i++) {
+        const cells = relativeTargets(part, used); if (!cells.length) break;
+        let k;
+        if (p.ai) { await sleep(420); k = aiRelative(pi, cells); }
+        else {
+          setPrompt(`<b>Relatives:</b> ${before} ${before === 1 ? 'piece was' : 'pieces were'} already in ${part.name}, so you may place ${before - i} more: in another ${BCOL[b.color].name.toLowerCase()} building, the other part of this one, or a neutral house. One per building.`);
+          k = await pick({kind:'cell', pi, cells, buttons:[{label:'Skip the rest', value:'skip'}]});
+        }
+        if (k === 'skip' || k == null) break;
+        used.add(bidOf(k));
+        const r = S.cits.find(x => x.p === pi && x.state === 'home'); r.state = 'board'; r.k = k; placed++;
+        log(`Relative ${cn(r)} moves into ${placeName(k)}.`); render();
+      }
+    }
+  }
+  // Draw back up to 4 cards
+  while (S.deck.length) {
+    const c = S.deck.shift();
+    if (c.type === 'pompeii') { p.hand.push(c); break; }
+    if (c.type === 'ad79') {
+      S.adSeen++;
+      if (S.adSeen === 1) { await showCard({type:'ad79', second:false}, pi); S.stirred = true; log('AD 79: Vesuvius seethes. Omens and Relatives now apply.', true); render(); continue; }
+      await showCard({type:'ad79', second:true}, pi); return pi;
+    }
+    if (c.type === 'omen') {
+      S.discard = c;
+      await showCard(c, pi);
+      const targets = boardCits().filter(x => x.p !== pi);
+      if (!targets.length) { log(`${OMENS[c.o].title}: no rival piece is in the city.`, true); continue; }
+      let k;
+      if (p.ai) { await sleep(500); k = aiOmen(pi, targets); }
+      else { setPrompt(`<b>Omen!</b> Tap a rival's piece to throw it into the volcano.`); k = await pick({kind:'cell', pi, cells:[...new Set(targets.map(x => x.k))], buttons:[]}); }
+      const victims = citsAt(k).filter(x => x.p !== pi), owners = [...new Set(victims.map(x => x.p))];
+      let owner = owners[0];
+      if (owners.length > 1) {
+        if (p.ai) owner = owners.sort((a, b) => (S.players[b].escaped + boardCits().filter(x => x.p === b).length) - (S.players[a].escaped + boardCits().filter(x => x.p === a).length))[0];
+        else { setPrompt('Whose piece goes into the volcano?'); owner = await pick({kind:'choice', pi, buttons:owners.map(o => ({label:S.players[o].gens, value:o}))}); }
+      }
+      kill(victims.find(x => x.p === owner), 'omen', pi); render(); continue;
+    }
+  }
+  return null;
+}
+
+async function lavaStep(pi) {
+  const p = S.players[pi]; if (!S.bag.length) return;
+  const t = S.bag.shift(); S.tile = {t, pi}; render();
+  let sym = t.sym;
+  if (t.dual) {
+    const opts = t.dual.filter(s => lavaTargets(s).length);
+    if (!opts.length) sym = t.dual[0];
+    else if (opts.length === 1) sym = opts[0];
+    else if (p.ai) { await sleep(500); sym = aiDual(pi, opts); }
+    else { setPrompt('You drew a <b>dual vent</b> tile. Choose which side to play.'); sym = await pick({kind:'choice', pi, buttons:opts.map(s => ({label:SYM[s].name, value:s}))}); }
+  }
+  const cells = lavaTargets(sym);
+  if (!cells.length) { log(`The ${SYM[sym].name} flow has nowhere to go. The tile is set aside.`); await sleep(600); S.tile = null; return; }
+  let k;
+  if (p.ai) { setPrompt(`The ${hn(pi)} drew a <b>${SYM[sym].name}</b> lava tile.`); await sleep(800); k = aiLava(pi, sym, cells); }
+  else { setPrompt(`You drew a <b>${SYM[sym].name}</b> lava tile. Place it on a glowing square${[...S.lava.values()].includes(sym) ? `, next to another ${SYM[sym].name} tile` : ', its first lava square'}.`); k = await pick({kind:'cell', pi, cells, buttons:[]}); }
+  placeLava(k, sym, pi); S.tile = null; render(); await sleep(300);
+}
+
+/* Which pieces may move now, and where. Rulebook p.7 including both exceptions. */
+function movables(pi, moved, aloneAtStart) {
+  const mine = boardCits().filter(c => c.p === pi), out = {};
+  for (const c of mine) {
+    if (moved.length === 1 && moved[0] === c.id && !(aloneAtStart.has(c.id) || mine.length === 1)) continue;
+    const d = [...reachable(c.k).keys()]; if (d.length) out[c.id] = d;
+  }
+  return out;
+}
+async function flightTurn(pi) {
+  const p = S.players[pi];
+  await lavaStep(pi);
+  const mine = () => boardCits().filter(c => c.p === pi);
+  if (!mine().length) { log(`${hn(pi)} have no one left in the city and only place lava.`); await sleep(250); return; }
+  const aloneAtStart = new Set(mine().filter(c => citsAt(c.k).length === 1).map(c => c.id));
+  const moved = [];
+  for (let m = 0; m < 2; m++) {
+    const mv = movables(pi, moved, aloneAtStart);
+    if (!Object.keys(mv).length) break;
+    let ch;
+    if (p.ai) { await sleep(650); ch = aiMove(pi, mv); if (!ch) break; }
+    else {
+      setPrompt(`${m === 0 ? 'Move up to 2 pieces.' : 'Move a second piece, or end your turn.'} Tap one of your pieces, then a glowing square. A piece moves 1 square for each piece on its square; a gate costs 1.`);
+      ch = await pick({kind:'move', pi, movables:mv, buttons:[{label:'End turn', value:null}]}); if (!ch) break;
+    }
+    const c = S.cits.find(x => x.id === ch.cid);
+    const g = GATE_BY_KEY.get(ch.dest), pts = citsAt(c.k).length;
+    if (g) { c.state = 'escaped'; c.k = null; p.escaped++; log(`${cn(c)} escapes through the <b>${g.name}</b> (${pts} move point${pts > 1 ? 's' : ''}).`); }
+    else { c.k = ch.dest; log(`${hn(pi)} move ${cn(c)} (${pts} move point${pts > 1 ? 's' : ''}).`); }
+    moved.push(c.id); S.fresh = null; render();
+  }
+}
+
+/* ================= Computer players ================= */
+function threatAt(k, front) { let m = 99; for (const f of front) m = Math.min(m, manh(k, f)); return Math.max(0, 4 - m) + (front.has(k) ? 3 : 0); }
+function frontier() { const f = new Set(); SYMS.forEach(s => lavaTargets(s.id).forEach(k => f.add(k))); return f; }
+function ventNear(k) { let t = 0; SYMS.forEach(s => t += Math.max(0, 3 - manh(k, s.origin))); return t; }
+function placeScore(k, d) { return 12 - (d.get(k) ?? 15) * 1.1 + citsAt(k).length * .9 - ventNear(k) * 1.3 + Math.random(); }
+function aiPlacement(pi, opts, canErupt) {
+  const p = S.players[pi], d = distMap();
+  if (canErupt) { const mineN = boardCits().filter(c => c.p === pi).length; const best = Math.max(...S.players.map((_, j) => j === pi ? 0 : boardCits().filter(c => c.p === j).length)); if (mineN >= best) return 'erupt'; }
+  let best = null;
+  opts.forEach((o, idx) => {
+    if (o.none || !o.cells.length) { const sc = -50 + Math.random(); if (!best || sc > best.sc) best = {sc, idx, k:null}; return; }
+    for (const k of o.cells) {
+      let sc = placeScore(k, d) - (o.wild ? .5 : 0);
+      const i = CELLINFO.get(k);
+      if (S.stirred && !o.wild && !i.neutral) sc += Math.min(partPieces(i.part), homeCount(pi) - 1) * 2.6;
+      if (!best || sc > best.sc) best = {sc, idx, k};
+    }
+  });
+  return best;
+}
+function aiRelative(pi, cells) { const d = distMap(); let best = null; for (const k of cells) { const sc = placeScore(k, d); if (!best || sc > best.sc) best = {sc, k}; } return best.k; }
+function aiOmen(pi, targets) {
+  const d = distMap(); let best = null;
+  for (const c of targets) { const strength = S.players[c.p].escaped + boardCits().filter(x => x.p === c.p).length;
+    const sc = 15 - (d.get(c.k) ?? 15) + strength * .4 + citsAt(c.k).length * .5 + Math.random() * 2; if (!best || sc > best.sc) best = {sc, k:c.k}; }
+  return best.k;
+}
+function lavaScore(pi, k) {
+  const base = distMap(), d2 = distMap(k); let sc = Math.random() * .8;
+  for (const c of boardCits()) { const w = c.p !== pi ? 1 : -1.4;
+    if (c.k === k) { sc += w * 10; continue; }
+    if (!d2.has(c.k)) { sc += w * 8; continue; }
+    sc += w * (d2.get(c.k) - (base.get(c.k) ?? d2.get(c.k))) * 1.5;
+    const m = manh(c.k, k); if (m <= 2) sc += w * (3 - m) * .8; }
+  return sc;
+}
+function aiLava(pi, sym, cells) { let best = null; for (const k of cells) { const sc = lavaScore(pi, k); if (!best || sc > best.sc) best = {sc, k}; } return best.k; }
+function aiDual(pi, syms) { let best = null; for (const s of syms) for (const k of lavaTargets(s)) { const sc = lavaScore(pi, k); if (!best || sc > best.sc) best = {sc, s}; } return best.s; }
+function aiMove(pi, mv) {
+  const d = distMap(), front = frontier(); let best = null;
+  for (const [cid, dests] of Object.entries(mv)) {
+    const c = S.cits.find(x => x.id === +cid), here = d.get(c.k) ?? 99, thr = threatAt(c.k, front);
+    for (const dest of dests) {
+      let sc;
+      if (GATE_BY_KEY.has(dest)) sc = 100 + thr * 3;
+      else sc = (here - (d.get(dest) ?? 99)) * 3 + thr * 2 - threatAt(dest, front) * 2.5 + citsAt(dest).length * .7;
+      sc += Math.random() * .3;
+      if (!best || sc > best.sc) best = {sc, cid:+cid, dest};
+    }
+  }
+  return best && best.sc > .5 ? {cid:best.cid, dest:best.dest} : null;
+}
+
+/* ================= Rendering ================= */
+function pawn(x, y, s, color) {
+  return `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cx="0" cy="9.5" rx="6.5" ry="1.8" fill="rgba(0,0,0,.35)"/><path d="M-6.5 9 Q-6.5 -2 0 -2 Q6.5 -2 6.5 9Z" fill="${color}" stroke="#120b08" stroke-width="1.3"/><circle cx="0" cy="-6.5" r="4.6" fill="${color}" stroke="#120b08" stroke-width="1.3"/><circle cx="-1.5" cy="-8" r="1.4" fill="rgba(255,255,255,.55)"/></g>`;
+}
+const SPOTS = {1:[[0,0]], 2:[[-8,1],[8,1]], 3:[[-9,5],[9,5],[0,-6]], 4:[[-8,-6],[8,-6],[-8,7],[8,7]]};
+const SCALE = {1:1.05, 2:.82, 3:.72, 4:.62};
+function partArt(icon, x, y, col, first) {
+  const c = col.roof, T = '#b8603b', cx = x + 20, cy = y + 20;
+  let s = `<rect x="${x}" y="${y}" width="40" height="40" fill="${col.hex}"/>`;
+  switch (icon) {
+    case 'forum': s += `<rect x="${x+4}" y="${y+4}" width="32" height="32" fill="#ece3cf"/>${colonnade(x+5, y+5, 30, 30, 6)}`; break;
+    case 'temple': s += `<rect x="${x+3}" y="${y+3}" width="34" height="34" fill="#ece3cf"/>${colonnade(x+4, y+4, 32, 32, 6.4)}${roof(cx-7, cy-10, 14, 20, c, false)}`; break;
+    case 'baths': s += roof(x+4, y+4, 32, 32, c) + `<circle cx="${cx}" cy="${cy}" r="9" fill="${c}" stroke="#2a1b12" stroke-width=".9"/><circle cx="${cx-3}" cy="${cy-3}" r="4" fill="rgba(255,255,255,.35)"/>`; break;
+    case 'faun': case 'vettii': s += `<rect x="${x+5}" y="${y+5.5}" width="32" height="32" fill="rgba(0,0,0,.25)"/><path d="M${x+3} ${y+3} h34 v34 h-34Z M${x+14} ${y+14} v12 h12 v-12Z" fill="${c}" fill-rule="evenodd" stroke="#2a1b12" stroke-width=".9"/><rect x="${x+16}" y="${y+16}" width="8" height="8" fill="${icon === 'vettii' ? '#93b86a' : '#7fb7c8'}"/>`; break;
+    case 'fullery': s += roof(x+3, y+3, 34, 12, c) + [x+10, x+20, x+30].map(v => `<circle cx="${v}" cy="${y+27}" r="4.5" fill="#bcd2d8" stroke="#2a1b12" stroke-width="1"/>`).join(''); break;
+    case 'bakery': s += roof(x+3, y+3, 34, 13, c) + `<circle cx="${x+13}" cy="${y+27}" r="5" fill="#6e6863" stroke="#2a1b12"/><circle cx="${x+28}" cy="${y+27}" r="6.5" fill="#c69060" stroke="#2a1b12"/>`; break;
+    case 'theatre': for (let r = 18, i = 0; r >= 6; r -= 4, i++) s += `<path d="M${cx-r} ${y+34} A${r} ${r*.9} 0 0 1 ${cx+r} ${y+34}Z" fill="${i % 2 ? c : '#e3cfa6'}" stroke="#2a1b12" stroke-width=".6"/>`; s += `<rect x="${x+4}" y="${y+33}" width="32" height="4" fill="#bfae93"/>`; break;
+    case 'amphi': s += `<ellipse cx="${cx}" cy="${cy}" rx="17" ry="15" fill="${c}" stroke="#2a1b12"/><ellipse cx="${cx}" cy="${cy}" rx="10" ry="8" fill="#ead6a8" stroke="#2a1b12"/>`; break;
+  }
+  return s;
+}
+function sockets(k, cap, n) {
+  const [c, r] = P(k), x = c*CS + 20, y = r*CS + 21, m = Math.min(4, Math.max(cap, n)); let s = '';
+  for (let i = 0; i < Math.min(cap, 4); i++) { const [dx, dy] = SPOTS[m][i]; s += `<circle cx="${x+dx}" cy="${y+dy+3}" r="4.3" fill="#f6efe0" stroke="#3a2416" stroke-width="1"/>`; }
+  return s;
+}
 function renderBoard() {
   const svg = document.getElementById('board'); let s = '';
   s += `<defs><pattern id="basalt" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#575049"/>
     <path d="M0 0 L9 1 L8 9 L0 8Z M10 0 L20 2 L19 10 L9 9Z M0 9 L8 10 L10 20 L0 19Z M9 10 L19 11 L20 20 L11 20Z" fill="#67605a" stroke="#433d38" stroke-width=".8"/></pattern>
     <radialGradient id="lavaG"><stop offset="0" stop-color="#ffd25a"/><stop offset=".5" stop-color="#ff7a1a"/><stop offset="1" stop-color="#a3220b"/></radialGradient>
     <linearGradient id="sea" x1="0" x2="1"><stop offset="0" stop-color="#3f7690"/><stop offset="1" stop-color="#6aa0b3"/></linearGradient></defs>`;
-  // countryside
   s += `<rect x="-70" y="-70" width="660" height="660" fill="#9db763"/>`;
   s += `<path d="M-70 120 C-50 160 -44 220 -40 270 C-38 320 -48 370 -70 420Z" fill="#dcc995"/><path d="M-70 135 C-56 170 -52 220 -50 270 C-49 315 -56 360 -70 405Z" fill="url(#sea)"/>`;
-  s += `<path d="M-64 136 q-3 6 0 12 M-60 210 q-3 6 0 12 M-62 300 q-3 6 0 12 M-66 360 q-2 5 0 10" stroke="#cfe6ee" stroke-width="1.2" fill="none" opacity=".7"/>`;
   s += `<path d="M-70 40 L-70 -70 L60 -70 C30 -60 10 -40 -6 -32 C-24 -22 -40 -10 -70 40Z" fill="#7d6d5f" stroke="#5b4d42"/><path d="M-70 -20 C-50 -36 -30 -48 -10 -58 L20 -70 L-70 -70Z" fill="#665649"/><path d="M-40 -58 C-44 -64 -38 -68 -42 -70" stroke="#b8aea6" stroke-width="5" fill="none" opacity=".8"/>`;
   s += `<text x="-62" y="-50" font-family="Cinzel, serif" font-weight="700" font-size="9" fill="#f2e6cc" letter-spacing="1">VESUVIUS</text>`;
   s += SCENERY;
   ROADS_OUT.forEach(d => s += `<path d="${d}" stroke="#a89466" stroke-width="16" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#d8c497" stroke-width="12" fill="none" stroke-linecap="round"/>`);
-  // city ground inside the wall
   s += `<rect x="22" y="22" width="476" height="476" fill="#d8c79f"/>`;
   for (let r = 1; r <= 11; r++) for (let c = 1; c <= 11; c++) {
-    const k = K(c, r), x = c*CS, y = r*CS;
+    const k = K(c, r), x = c*CS, y = r*CS, info = CELLINFO.get(k);
     if (ROAD.has(k)) {
       s += `<rect x="${x}" y="${y}" width="40" height="40" fill="url(#basalt)"/>`;
-      const hz = r === 3 || r === 7, vt = c === 2 || c === 6 || c === 10;
+      const hz = r === 3 || r === 7, vt = c === 2 || c === 6 || c === 10, h = hash(c, r) % 4;
       if (hz && !vt) s += `<path d="M${x} ${y+2} h40 M${x} ${y+38} h40" stroke="#e3d6b8" stroke-width="3"/>`;
       if (vt && !hz) s += `<path d="M${x+2} ${y} v40 M${x+38} ${y} v40" stroke="#e3d6b8" stroke-width="3"/>`;
-      const h = hash(c, r) % 4;
       if (h === 0 && hz !== vt) s += hz ? `<g fill="#e8ddc6" stroke="#8a7d68" stroke-width=".6"><ellipse cx="${x+20}" cy="${y+11}" rx="5" ry="3.4"/><ellipse cx="${x+20}" cy="${y+20}" rx="5" ry="3.4"/><ellipse cx="${x+20}" cy="${y+29}" rx="5" ry="3.4"/></g>` : `<g fill="#e8ddc6" stroke="#8a7d68" stroke-width=".6"><ellipse cx="${x+11}" cy="${y+20}" rx="3.4" ry="5"/><ellipse cx="${x+20}" cy="${y+20}" rx="3.4" ry="5"/><ellipse cx="${x+29}" cy="${y+20}" rx="3.4" ry="5"/></g>`;
-      if (h === 1 && hz !== vt) s += `<rect x="${x+15}" y="${y+15}" width="10" height="10" fill="#c9bda4" stroke="#6b5a45" stroke-width=".7"/><circle cx="${x+20}" cy="${y+20}" r="2.6" fill="#7fb7c8"/>`;
-    } else if (!CELLB.has(k)) s += insula(c, r);
+    } else if (VENT_AT.has(k)) {
+      const v = VENT_AT.get(k);
+      s += `<rect x="${x}" y="${y}" width="40" height="40" fill="#3b3a52"/><path d="M${x+3} ${y+30} l8 -4 l5 5 l7 -6 l6 4 l7 -3 M${x+6} ${y+8} l6 5 l6 -3" stroke="#1d1c2c" stroke-width="1.6" fill="none"/><circle cx="${x+20}" cy="${y+20}" r="12" fill="rgba(0,0,0,.3)"/><g transform="translate(${x+20} ${y+20})">${glyph(v.id, .9, v.color)}</g>`;
+    } else if (info && info.neutral) {
+      s += insula(c, r).replace(/fill="#dccca6"/, 'fill="#e6d6ae"') + `<rect x="${x+1.5}" y="${y+1.5}" width="37" height="37" fill="none" stroke="#c2a878" stroke-width="2"/>`;
+    } else if (info) {
+      s += partArt(info.b.icon, x, y, BCOL[info.b.color]);
+    } else {
+      const h = hash(c, r) % 3;
+      s += h === 0 ? `<rect x="${x}" y="${y}" width="40" height="40" fill="#e7dcc4"/><rect x="${x+14}" y="${y+14}" width="12" height="12" fill="#c9bda4" stroke="#6b5a45" stroke-width=".7"/><circle cx="${x+20}" cy="${y+20}" r="3" fill="#7fb7c8"/>`
+        : `<rect x="${x}" y="${y}" width="40" height="40" fill="#a9c27a"/><circle cx="${x+12}" cy="${y+13}" r="5.5" fill="#5d8a45"/><circle cx="${x+27}" cy="${y+25}" r="6.5" fill="#5d8a45"/><circle cx="${x+25}" cy="${y+10}" r="3.5" fill="#6f9a52"/><path d="M${x+4} ${y+34} h32" stroke="#d8c79f" stroke-width="3"/>`;
+    }
   }
-  BUILD.forEach(b => {
-    s += `<clipPath id="cl${b.i}">${b.cells.map(k => { const [c, r] = P(k); return `<rect x="${c*CS}" y="${r*CS}" width="40" height="40"/>`; }).join('')}</clipPath>`;
-    s += `<g clip-path="url(#cl${b.i})">${buildingArt(b)}</g>`;
-    b.cells.forEach(k => { const [c, r] = P(k), x = c*CS, y = r*CS; const e = (dc, dr) => CELLB.get(K(c+dc, r+dr)) !== b;
-      if (e(0,-1)) s += `<path d="M${x} ${y} h40" stroke="#3a2416" stroke-width="2.4"/>`;
-      if (e(0,1)) s += `<path d="M${x} ${y+40} h40" stroke="#3a2416" stroke-width="2.4"/>`;
-      if (e(-1,0)) s += `<path d="M${x} ${y} v40" stroke="#3a2416" stroke-width="2.4"/>`;
-      if (e(1,0)) s += `<path d="M${x+40} ${y} v40" stroke="#3a2416" stroke-width="2.4"/>`; });
-  });
-  // faint square grid so every space reads clearly
-  for (let i = 1; i <= 12; i++) s += `<path d="M${i*CS} 40 V480 M40 ${i*CS} H480" stroke="rgba(50,30,15,.22)" stroke-width=".8"/>`;
-  BUILD.forEach(b => { const [c, r] = P(b.cells[0]), x = c*CS, y = r*CS, w = b.roman.length * 6 + 7;
-    s += `<rect x="${x+2}" y="${y+2}" width="${w}" height="12" rx="2" fill="#f6efe0" stroke="#3a2416" stroke-width=".8"/><text x="${x+2+w/2}" y="${y+11.3}" text-anchor="middle" font-family="Cinzel, serif" font-weight="900" font-size="9" fill="#3a2416">${b.roman}</text>`; });
-  // city wall with towers
+  // part outlines and number badges
+  BUILD.forEach(b => b.parts.forEach(pt => {
+    const col = BCOL[b.color];
+    pt.keys.forEach(k => { const [c, r] = P(k), x = c*CS, y = r*CS; const e = (dc, dr) => { const i = CELLINFO.get(K(c+dc, r+dr)); return !i || i.part !== pt; };
+      if (e(0,-1)) s += `<path d="M${x} ${y} h40" stroke="${col.deep}" stroke-width="3"/>`;
+      if (e(0,1)) s += `<path d="M${x} ${y+40} h40" stroke="${col.deep}" stroke-width="3"/>`;
+      if (e(-1,0)) s += `<path d="M${x} ${y} v40" stroke="${col.deep}" stroke-width="3"/>`;
+      if (e(1,0)) s += `<path d="M${x+40} ${y} v40" stroke="${col.deep}" stroke-width="3"/>`; });
+    const [c, r] = P(pt.keys[0]);
+    s += `<circle cx="${c*CS+8}" cy="${r*CS+8}" r="7" fill="${col.deep}" stroke="#f6efe0" stroke-width="1.2"/><text x="${c*CS+8}" y="${r*CS+8.5}" text-anchor="middle" dominant-baseline="middle" font-family="Cinzel, serif" font-weight="900" font-size="${b.n > 9 ? 7.5 : 9}" fill="#fff">${b.n}</text>`;
+  }));
+  for (let i = 1; i <= 12; i++) s += `<path d="M${i*CS} 40 V480 M40 ${i*CS} H480" stroke="rgba(50,30,15,.2)" stroke-width=".8"/>`;
+  // sockets (spaces) are shown during phase 1 only; in phase 2 they have no meaning
+  if (S.phase === 'place') for (const [k, i] of CELLINFO) if (!S.lava.has(k)) s += sockets(k, i.cap, citsAt(k).length);
+  // wall, towers, gates
   s += `<rect x="22" y="22" width="476" height="476" fill="none" stroke="#5b5046" stroke-width="18"/><rect x="22" y="22" width="476" height="476" fill="none" stroke="#e6dccb" stroke-width="13"/><rect x="22" y="22" width="476" height="476" fill="none" stroke="#b9ad99" stroke-width="1" stroke-dasharray="5 3"/>`;
-  const towers = [[1,0],[4,0],[8,0],[11,0],[0,2],[0,5],[0,10],[12,1],[12,5],[12,9],[12,11],[1,12],[3,12],[8,12],[12,12],[0,0],[12,0],[0,12]];
-  towers.forEach(([c, r]) => { const x = Math.min(Math.max(c*CS+20, 22), 498), y = Math.min(Math.max(r*CS+20, 22), 498);
+  [[1,0],[4,0],[8,0],[11,0],[0,2],[0,5],[0,10],[12,1],[12,5],[12,9],[12,11],[1,12],[3,12],[8,12],[12,12],[0,0],[12,0],[0,12]].forEach(([c, r]) => {
+    const x = Math.min(Math.max(c*CS+20, 22), 498), y = Math.min(Math.max(r*CS+20, 22), 498);
     s += `<rect x="${x-10}" y="${y-8}" width="22" height="22" fill="rgba(0,0,0,.25)"/><rect x="${x-11}" y="${y-11}" width="22" height="22" fill="#efe7d8" stroke="#5b5046" stroke-width="1.2"/><rect x="${x-7}" y="${y-7}" width="14" height="14" fill="#b8603b" stroke="#4a2a18" stroke-width=".8"/><path d="M${x-7} ${y} h14" stroke="#4a2a18" stroke-width=".8"/>`; });
-  // gates
-  GATES.forEach(g => { const x = g.c*CS, y = g.r*CS, blocked = S.lava.has(g.inner), cx = x + 20, cy = y + 20;
-    s += `<g transform="rotate(${g.rot} ${cx} ${cy})">
-      <rect x="${x+2}" y="${y+12}" width="12" height="20" fill="#efe7d8" stroke="#5b5046" stroke-width="1.2"/><rect x="${x+26}" y="${y+12}" width="12" height="20" fill="#efe7d8" stroke="#5b5046" stroke-width="1.2"/>
-      <rect x="${x+4}" y="${y+14}" width="8" height="8" fill="#b8603b"/><rect x="${x+28}" y="${y+14}" width="8" height="8" fill="#b8603b"/>
-      <rect x="${x+14}" y="${y+8}" width="12" height="32" fill="${blocked ? '#8a1a08' : '#cbb88f'}" stroke="#5b5046" stroke-width="1"/>
-      <path d="M${x+14} ${y+20} h12" stroke="#5b5046" stroke-width="1"/></g>`;
+  GATES.forEach(g => { const x = g.c*CS, y = g.r*CS, blocked = !passable(g.inner), cx = x + 20, cy = y + 20;
+    s += `<g transform="rotate(${g.rot} ${cx} ${cy})"><rect x="${x+2}" y="${y+12}" width="12" height="20" fill="#efe7d8" stroke="#5b5046" stroke-width="1.2"/><rect x="${x+26}" y="${y+12}" width="12" height="20" fill="#efe7d8" stroke="#5b5046" stroke-width="1.2"/>
+      <rect x="${x+4}" y="${y+14}" width="8" height="8" fill="#b8603b"/><rect x="${x+28}" y="${y+14}" width="8" height="8" fill="#b8603b"/><rect x="${x+14}" y="${y+8}" width="12" height="32" fill="${blocked ? '#8a1a08' : '#cbb88f'}" stroke="#5b5046" stroke-width="1"/><path d="M${x+14} ${y+20} h12" stroke="#5b5046" stroke-width="1"/></g>`;
     const tx = g.c === 0 ? -10 : g.c === 12 ? 530 : cx, ty = g.r === 0 ? -8 : g.r === 12 ? 535 : cy, tr = g.c === 0 ? -90 : g.c === 12 ? 90 : 0;
     s += `<text x="${tx}" y="${ty}" transform="rotate(${tr} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle" font-family="Cinzel, serif" font-weight="700" font-size="9" fill="#2a1b12" stroke="#f2e6cc" stroke-width="2.6" paint-order="stroke" letter-spacing=".6">${g.name.toUpperCase()}</text>`; });
-  // compass
   s += `<g transform="translate(565 -45)"><circle r="15" fill="rgba(242,230,204,.85)" stroke="#5b4d42"/><path d="M0 -12 L4 2 L0 0 L-4 2Z" fill="#9b2d20"/><path d="M0 12 L4 -2 L0 0 L-4 -2Z" fill="#5b4d42"/><text y="-17" text-anchor="middle" font-family="Cinzel, serif" font-size="8" font-weight="700" fill="#2a1b12">N</text></g>`;
-  // vents (uncovered craters)
-  VENTS.forEach(v => { if (S.lava.has(v.origin)) return; const [c, r] = P(v.origin), x = c*CS+20, y = r*CS+20;
-    s += `<path d="M${x-18} ${y+6} l6 -3 l4 4 l3 -5 M${x+18} ${y-6} l-6 2 l-3 -4 l-4 5" stroke="#3a1a10" stroke-width="1.5" fill="none"/><circle cx="${x}" cy="${y}" r="12" fill="#24130e" stroke="${v.color}" stroke-width="2.2"/><g transform="translate(${x} ${y})">${glyph(v.id, .8, v.color)}</g>`; });
   // lava
-  for (const [k, vid] of S.lava) { const [c, r] = P(k), x = c*CS, y = r*CS, h = hash(c, r);
+  for (const [k, sym] of S.lava) { const [c, r] = P(k), x = c*CS, y = r*CS, h = hash(c, r);
     s += `<rect x="${x}" y="${y}" width="40" height="40" fill="url(#lavaG)"/><path d="M${x+3} ${y+8+h%9} l9 3 l5 -4 l8 6 M${x+22} ${y+30-h%7} l7 -3 l8 4" stroke="#7a1606" stroke-width="1.6" fill="none" opacity=".7"/>
-      <g transform="translate(${x+20} ${y+20})">${glyph(vid, .95, 'rgba(80,12,2,.72)')}</g>`;
+      <g transform="translate(${x+20} ${y+20})">${glyph(sym, .95, 'rgba(80,12,2,.75)')}</g>`;
     if (!REDUCED) s += `<rect class="glow" x="${x}" y="${y}" width="40" height="40" fill="#ffe08a" style="animation-delay:-${(h%16)/10}s"/>`;
     if (k === S.fresh) s += `<rect class="fresh" x="${x}" y="${y}" width="40" height="40" fill="#fff6c8"/>`; }
-  // citizens
+  // pieces
   const byCell = new Map(); boardCits().forEach(c => { if (!byCell.has(c.k)) byCell.set(c.k, []); byCell.get(c.k).push(c); });
   const pk = S.pick;
+  const mvSel = pk && pk.kind === 'move' && pk.selCid != null ? S.cits.find(x => x.id === pk.selCid) : null;
   for (const [k, list] of byCell) {
     const [c, r] = P(k), x = c*CS+20, y = r*CS+21; list.sort((a, b) => a.p - b.p);
-    const n = Math.min(list.length, 4);
-    if (pk && pk.kind === 'move' && pk.sel && pk.sel.k === k) s += `<circle cx="${x}" cy="${y-1}" r="18" fill="rgba(255,255,255,.3)" stroke="#fff" stroke-width="2" stroke-dasharray="4 3"/>`;
-    list.slice(0, 4).forEach((ct, i) => { const [dx, dy] = SPOTS[n][i]; s += pawn(x+dx, y+dy, SCALE[n], S.players[ct.p].color); });
+    const m = Math.min(4, Math.max(list.length, S.phase === 'place' ? capAt(k) : 0) || 1);
+    if (mvSel && mvSel.k === k) s += `<circle cx="${x}" cy="${y-1}" r="18" fill="rgba(255,255,255,.3)" stroke="#fff" stroke-width="2" stroke-dasharray="4 3"/>`;
+    list.slice(0, 4).forEach((ct, i) => { const [dx, dy] = SPOTS[m][i]; s += pawn(x+dx, y+dy, SCALE[m], S.players[ct.p].color); });
     if (list.length > 4) s += `<circle cx="${x+13}" cy="${y-13}" r="7" fill="#120b08" stroke="#f2deb0"/><text x="${x+13}" y="${y-12.5}" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="700" fill="#f2deb0">${list.length}</text>`;
-    if (pk && pk.kind === 'move' && !pk.sel && list.some(ct => ct.p === pk.pi && !pk.moved.has(ct.id))) s += `<rect x="${x-19}" y="${y-20}" width="38" height="38" rx="4" fill="none" stroke="#fff" stroke-width="1.8" stroke-dasharray="3 3"/>`;
+    if (S.phase === 'flight' || S.phase === 'erupting') s += `<text x="${c*CS+37}" y="${r*CS+38}" text-anchor="end" font-size="8" font-weight="700" fill="#fff" stroke="#120b08" stroke-width="2.2" paint-order="stroke">${list.length}</text>`;
+    if (pk && pk.kind === 'move' && pk.selCid == null && list.some(ct => pk.movables[ct.id])) s += `<rect x="${x-19}" y="${y-20}" width="38" height="38" rx="4" fill="none" stroke="#fff" stroke-width="1.8" stroke-dasharray="3 3"/>`;
   }
-  if (pk && pk.cells) for (const k of pk.cells) { const [c, r] = P(k); s += `<rect class="hl" x="${c*CS+2}" y="${r*CS+2}" width="36" height="36" rx="4"/>`; }
+  for (const k of highlightCells()) { const [c, r] = P(k); s += `<rect class="hl" x="${c*CS+2}" y="${r*CS+2}" width="36" height="36" rx="4"/>`; }
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) s += `<rect class="hit" data-k="${K(c, r)}" x="${c*CS}" y="${r*CS}" width="40" height="40"/>`;
   svg.innerHTML = s;
 }
-
+function highlightCells() {
+  const pk = S.pick; if (!pk) return [];
+  if (pk.kind === 'cell') return pk.cells;
+  if (pk.kind === 'place') return pk.sel != null ? pk.cardOpts[pk.sel].cells : [];
+  if (pk.kind === 'move') return pk.selCid != null ? pk.movables[pk.selCid] || [] : [];
+  return [];
+}
 function renderMountain() {
-  const lost = S.players.map(p => p.lost), total = lost.reduce((a,b) => a+b, 0);
+  const total = S.players.reduce((a, p) => a + p.lost, 0);
   const plume = S.phase === 'place' ? (S.stirred ? .7 : .25) : 1;
   document.getElementById('mountain').innerHTML = `<svg viewBox="0 0 92 56" aria-hidden="true">
     <g opacity="${plume}"><ellipse cx="46" cy="9" rx="${14 + plume*16}" ry="6" fill="#8d847e"/><ellipse cx="36" cy="12" rx="10" ry="4" fill="#a59c95"/><path d="M44 22 C42 16 47 14 45 8" stroke="#a59c95" stroke-width="4" fill="none"/></g>
     <path d="M2 56 L32 24 L40 27 L46 21 L54 27 L60 24 L90 56Z" fill="#3a2a25" stroke="#d9a43a" stroke-width=".8"/>
     ${S.phase !== 'place' ? '<path d="M46 22 L42 34 L47 40 L43 56 M47 22 L53 36 L50 46 L56 56" stroke="#ff7a1a" stroke-width="2" fill="none"/>' : S.stirred ? '<path d="M46 22 L43 30" stroke="#ff7a1a" stroke-width="2"/>' : ''}
     <ellipse cx="46" cy="23" rx="6" ry="1.6" fill="${S.phase === 'place' && !S.stirred ? '#1a100d' : '#ff9a2a'}"/></svg>
-    <div><div class="mt-title">THE MOUNTAIN HOLDS ${total}</div><div class="mt-counts">${S.players.map((p, i) => `<span><i class="dot" style="background:${p.color}"></i>${p.lost}</span>`).join('')}</div></div>`;
+    <div><div class="mt-title">IN THE VOLCANO: ${total}</div><div class="mt-counts">${S.players.map(p => `<span><i class="dot" style="background:${p.color}"></i>${p.lost}</span>`).join('')}</div></div>`;
 }
-
 function renderHouses() {
   document.getElementById('houses').innerHTML = S.players.map((p, i) => {
     const home = homeCount(i), board = boardCits().filter(c => c.p === i).length;
-    return `<div class="house ${i === S.cur && !S.over ? 'cur' : ''}" style="--pc:${p.color}"><span class="sw"></span><span class="nm">${p.gens}<small>${NET.mode !== 'local' && i === NET.mySeat ? 'you' : p.ai ? 'computer' : p.remote || NET.mode === 'guest' ? 'online' : 'player'}<span class="tr"> · ${p.trade}</span></small></span><span class="esc" title="Escaped">${p.escaped}</span>
-      <div class="st"><span>Home <b>${home}</b></span><span>In city <b>${board}</b></span><span>Escaped <b>${p.escaped}</b></span><span>Lost <b>${p.lost}</b></span></div></div>`;
+    const who = NET.mode !== 'local' && i === NET.mySeat ? 'you' : p.ai ? 'computer' : p.remote || NET.mode === 'guest' ? 'online' : 'player';
+    return `<div class="house ${i === S.cur && !S.over ? 'cur' : ''}" style="--pc:${p.color}"><span class="sw"></span><span class="nm">${p.gens}<small>${who}<span class="tr"> · ${p.trade}</span></small></span><span class="esc" title="Saved">${p.escaped}</span>
+      <div class="st"><span>Supply <b>${S.phase === 'place' ? home : 0}</b></span><span>In city <b>${board}</b></span><span>Saved <b>${p.escaped}</b></span><span>Volcano <b>${p.lost}</b></span></div></div>`;
   }).join('');
 }
+function bagCounts() { const m = {}; SYMS.forEach(s => m[s.id] = 0); let dual = 0; (S.bag || []).forEach(t => t.dual ? dual++ : m[t.sym]++); return {m, dual}; }
 function renderLegend() {
-  document.getElementById('legend').innerHTML = VENTS.map(v => `<div><span class="tile">${tileSVG(v)}</span><span><b>${v.name}</b><span>${v.gloss} · ${S.lavaDeck.filter(x => x === v.id).length} left</span></span></div>`).join('');
+  const {m, dual} = bagCounts();
+  document.getElementById('legend').innerHTML = SYMS.map(v => `<div><span class="tile">${tileSVG({sym:v.id})}</span><span><b>${v.name}</b><span>${m[v.id]} of ${v.count} left</span></span></div>`).join('') +
+    (S.dual ? `<div><span class="tile">${tileSVG({dual:DUALS[0]})}</span><span><b>Dual vent</b><span>${dual} of 3 left</span></span></div>` : '');
 }
 function renderPrompt() {
   document.getElementById('prompt').innerHTML = S.prompt || '';
   const slot = document.getElementById('tileSlot');
-  slot.innerHTML = S.tile ? `<span class="tile" title="${S.tile.v.name} lava tile">${tileSVG(S.tile.v)}</span>` : '';
+  slot.innerHTML = S.tile ? `<span class="tile" title="Lava tile">${tileSVG(S.tile.t)}</span>` : '';
   const a = document.getElementById('actions'); a.innerHTML = '';
-  if (S.pick && S.pick.kind === 'move') { const b = document.createElement('button'); b.className = 'btn primary'; b.textContent = 'End turn'; b.onclick = () => S.pick.resolve(null); a.appendChild(b); }
+  if (S.pick && S.pick.buttons) S.pick.buttons.forEach(bt => { const b = document.createElement('button'); b.className = 'btn primary'; b.textContent = bt.label; b.onclick = () => S.pick.resolve(bt.value); a.appendChild(b); });
 }
 function viewer() {
   if (NET.mode !== 'local') return NET.mySeat ?? -1;
@@ -909,46 +1023,49 @@ function viewer() {
 }
 function renderHand() {
   const h = document.getElementById('hand'), title = document.getElementById('handTitle'), v = viewer();
+  const disc = `<div class="discard"><span>Discard pile</span>${S.discard ? cardHTML(S.discard, 'small') : '<div class="card small empty">Empty</div>'}</div>`;
   if (S.phase !== 'place') {
-    title.textContent = S.phase === 'over' ? 'The day is over' : 'The flight';
-    h.innerHTML = `<div class="hand-note">Hands are gone; only the lava tiles matter now. ${S.lavaDeck.length} tiles remain. Paved roads (dark basalt) let a citizen run 3 squares, everywhere else 2. A citizen with no open path to any gate is lost.</div>`;
+    title.textContent = S.phase === 'over' ? 'The day is over' : 'Run for your lives';
+    h.innerHTML = `<div class="hand-note">Hands are gone. Each turn: draw and place 1 lava tile, then move up to 2 of your pieces. A piece moves 1 square for each piece (any colour) on its square, and leaving through a gate costs 1. ${S.bag.length} lava tiles left in the bag.</div>`;
     return;
   }
-  if (v < 0) { title.textContent = 'Hand hidden'; h.innerHTML = '<div class="hand-note">Waiting for the next player.</div>'; return; }
+  if (v < 0) { title.textContent = 'Hand hidden'; h.innerHTML = '<div class="hand-note">Waiting for the next player.</div>' + disc; return; }
   const p = S.players[v]; title.innerHTML = `Hand of the ${p.gens}`;
   const pk = S.pick && S.pick.kind === 'place' && S.pick.pi === v ? S.pick : null;
-  h.innerHTML = p.hand.map((c, i) => buildingCard(BUILD[c.b], `data-idx="${i}" role="button" tabindex="0" aria-label="${BUILD[c.b].name}"`, pk && pk.sel === i ? 'sel' : (pk && pk.sel != null ? 'dim' : ''))).join('');
+  h.innerHTML = p.hand.map((c, i) => { const b = BY_NUM.get(c.b), wild = pk ? pk.cardOpts[i].wild : !buildingFreeCells(b).length;
+    return buildingCard(b, `data-idx="${i}" role="button" tabindex="0" aria-label="Card ${b.n}, ${b.name}"`, pk && pk.sel === i ? 'sel' : (pk && pk.sel != null ? 'dim' : ''), wild); }).join('') + disc;
 }
 function renderLog() { document.getElementById('log').innerHTML = S.log.map(l => `<li class="${l.ev ? 'ev' : ''}">${l.html}</li>`).join(''); }
 function renderHeader() {
-  document.getElementById('phase').textContent = S.phase === 'place' ? (S.stirred ? 'II · The mountain stirs' : 'I · Settling the city') : S.phase === 'flight' ? 'III · Flight' : 'Finis';
-  document.getElementById('pile').textContent = S.phase === 'place' ? `Draw pile ${S.deck.length}` : `Lava tiles ${S.lavaDeck.length}`;
+  document.getElementById('phase').textContent = S.phase === 'place' ? (S.stirred ? 'Phase 1 · Vesuvius seethes' : 'Phase 1 · New citizens') : S.phase === 'erupting' ? 'Vesuvius erupts' : S.phase === 'flight' ? 'Phase 2 · Run for your lives' : 'Finis';
+  document.getElementById('pile').textContent = S.phase === 'place' ? `Deck ${S.deck.length}` : `Lava tiles ${S.bag.length}`;
 }
 function render() { if (NET.mode === 'host' && NET.started) scheduleBroadcast(); renderHeader(); renderMountain(); renderBoard(); renderPrompt(); renderHand(); renderHouses(); renderLegend(); renderLog(); }
 
-/* =============== Input =============== */
+/* ================= Input ================= */
 document.getElementById('board').addEventListener('click', e => {
   const t = e.target.closest('[data-k]'); if (!t || !S) return; const k = t.dataset.k, pk = S.pick;
   if (pk) {
-    if (pk.kind === 'cell' && pk.cells.has(k)) return pk.resolve(k);
-    if (pk.kind === 'place' && pk.sel != null && pk.cells.has(k)) return pk.resolve({idx:pk.sel, k});
+    if (pk.kind === 'cell' && pk.cells.includes(k)) return pk.resolve(k);
+    if (pk.kind === 'place' && pk.sel != null && pk.cardOpts[pk.sel].cells.includes(k)) return pk.resolve({idx:pk.sel, k});
     if (pk.kind === 'move') {
-      if (pk.sel && pk.cells.has(k)) return pk.resolve({cit:pk.sel, dest:k});
-      const mine = citsAt(k).filter(c => c.p === pk.pi && !pk.moved.has(c.id));
-      if (mine.length) { if (pk.sel && pk.sel.k === k) { pk.sel = null; pk.cells = new Set(); } else { pk.sel = mine[0]; pk.cells = new Set(reachable(k).keys()); } render(); return; }
-      if (pk.sel) { pk.sel = null; pk.cells = new Set(); render(); return; }
+      if (pk.selCid != null && (pk.movables[pk.selCid] || []).includes(k)) return pk.resolve({cid:pk.selCid, dest:k});
+      const mine = citsAt(k).filter(c => pk.movables[c.id]);
+      if (mine.length) { pk.selCid = pk.selCid != null && mine.some(c => c.id === pk.selCid) ? null : mine[0].id; render(); return; }
+      if (pk.selCid != null) { pk.selCid = null; render(); return; }
     }
   }
-  const b = CELLB.get(k);
-  if (b && (!pk || (pk.kind === 'place' && pk.sel == null))) showInfo(buildingCard(b, '', 'big'));
-  else if (GATE_BY_KEY.has(k) && !pk) { const g = GATE_BY_KEY.get(k); showInfo(`<div class="mbox"><h2>${g.name}</h2><p>One of the seven gates in Pompeii's walls. Step onto it to escape the city. It closes for good if lava covers the square just inside it.</p></div>`); }
+  const info = CELLINFO.get(k);
+  if (info && !info.neutral && (!pk || (pk.kind === 'place' && pk.sel == null))) showInfo(buildingCard(info.b, '', 'big'));
+  else if (GATE_BY_KEY.has(k) && !pk) showInfo(`<div class="mbox"><h2>${GATE_BY_KEY.get(k).name}</h2><p>One of the seven city gates. Moving through a gate costs 1 move point and the piece is saved. A gate is closed once lava covers the square inside it.</p></div>`);
+  else if (VENT_AT.has(k) && !pk) { const v = VENT_AT.get(k); showInfo(`<div class="mbox"><h2>First lava square: ${v.name}</h2><p>The first ${v.name} tile goes here. Until then, nobody may move onto this square.</p></div>`); }
 });
 function handPick(i) {
   const pk = S.pick;
   if (pk && pk.kind === 'place') {
-    if (pk.discard) return pk.resolve({idx:i, k:null});
-    pk.sel = pk.sel === i ? null : i; pk.cells = pk.sel == null ? new Set() : new Set(legalPlacement(BUILD[S.players[pk.pi].hand[i].b]).cells); render();
-  } else { const v = viewer(); if (v >= 0) showInfo(buildingCard(BUILD[S.players[v].hand[i].b], '', 'big')); }
+    if (!pk.cardOpts[i].cells.length) return pk.resolve({idx:i, k:null});
+    pk.sel = pk.sel === i ? null : i; render();
+  } else { const v = viewer(); if (v >= 0) showInfo(buildingCard(BY_NUM.get(S.players[v].hand[i].b), '', 'big')); }
 }
 document.getElementById('hand').addEventListener('click', e => { const c = e.target.closest('.card[data-idx]'); if (c) handPick(+c.dataset.idx); });
 document.getElementById('hand').addEventListener('keydown', e => { const c = e.target.closest('.card[data-idx]'); if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); handPick(+c.dataset.idx); } });
@@ -958,26 +1075,36 @@ function showInfo(inner) {
   const close = () => { m.hidden = true; m.innerHTML = ''; }; document.getElementById('mClose').onclick = close; document.getElementById('mClose').focus();
 }
 
-/* =============== Rules / setup / end =============== */
+/* ================= Rules reference ================= */
 const RULES = `<h2>How to play</h2>
-<p>It is AD 79 and Vesuvius is about to erupt. Each player leads a Pompeian household. Get the most family members out through the city's seven gates before the lava buries everything.</p>
-<h3>I · SETTLING THE CITY</h3>
-<ul><li>On your turn, play one building card and place a citizen from home on a free square of that building. If the building is full, place on any free building square.</li>
-<li><b>Kinship:</b> if the building already shelters people, they take in more of your family: place 1 extra citizen per occupied square there (2 at most), on any free building square.</li>
-<li>Then draw a card. A <b>Portent</b> lets you cast one rival citizen into the Mountain; then draw again.</li></ul>
-<h3>II · THE MOUNTAIN STIRS</h3>
-<ul><li>When the first <b>AD LXXIX</b> card is drawn, every household places one lava tile, starting with the one who drew it. Settling then continues.</li></ul>
-<h3>III · FLIGHT</h3>
-<ul><li>The second AD LXXIX card starts the flight. Hands are discarded.</li>
-<li>Each turn, first draw a lava tile (two in a 2-player game) and place it touching lava of the same vent. A vent's first tile covers its crater. Citizens under it are lost.</li>
-<li>Any citizen with no open path to a gate is entombed.</li>
-<li>Then move up to two different citizens: <b>3 squares</b> if they start on a dark basalt road, <b>2</b> otherwise, never through lava. Step onto a gate to escape. A square can hold any number of citizens.</li>
-<li>Households with no one left in the city still place lava every turn.</li></ul>
-<h3>THE END</h3>
-<p>The game ends when nobody is left in the city or the lava tiles run out (anyone still inside is lost). The household with the most escaped wins. Ties go to whoever lost fewer.</p>
-<p style="color:var(--ash);font-size:.85rem">Tip: tap any building on the map to read its card, and tap a gate to see its name.</p>`;
+<p>Pompeii, AD 79. In phase 1 you bring as many of your people into the city as you can. When Vesuvius erupts, you try to get them out through the seven gates before the lava covers everything. Whoever saves the most wins.</p>
+<h3>SETUP</h3>
+<ul><li>2–3 players: 30 pieces each. 4 players: 25 each. Each player starts with a 4-card hand.</li>
+<li>The deck: 8 Pompeii cards, then the first AD 79 card, then the rest of the Pompeii and Omen cards with the second AD 79 shuffled into the bottom 10 (4 players) or 15 (2–3 players).</li></ul>
+<h3>PHASE 1 · NEW CITIZENS</h3>
+<ul><li>On your turn: play 1 card, put 1 piece on a free space in the building with that number (either part of a two-part building), then draw.</li>
+<li>Each card shows its building's spaces, which is also how many cards of that number exist.</li>
+<li><b>Wild card:</b> if every space of the card's building is taken, place your piece on any free space in any building. Wild placements never bring relatives.</li>
+<li><b>First AD 79:</b> draw a replacement card. From now on:</li>
+<li><b>Omens:</b> when you draw one, throw another player's piece from any building into the volcano, then draw again.</li>
+<li><b>Relatives:</b> if the part of the building where you place already holds pieces (any colour), you may place 1 extra piece for each of them: in a different building of the same colour, the other part of the same building, or a neutral (unnumbered) house. Never in the same part, only 1 per building, no chain reactions. If spaces run out, extra relatives are lost.</li>
+<li>If every card in your hand is wild, you may call "The volcano erupts!" and end phase 1.</li></ul>
+<h3>THE ERUPTION</h3>
+<ul><li>When the second AD 79 card is drawn, hands and unplaced pieces go back in the box.</li>
+<li>Starting with the left-hand neighbour of whoever drew it, players each draw and place 1 lava tile until 6 are on the board. The first tile of each symbol goes on that symbol's first lava square; later tiles go next to a tile of the same symbol. Pieces under lava go into the volcano.</li></ul>
+<h3>PHASE 2 · RUN FOR YOUR LIVES</h3>
+<ul><li>The left-hand neighbour of whoever placed the 6th tile starts. On your turn: draw and place 1 lava tile, then move up to 2 of your pieces.</li>
+<li>A piece moves up to 1 square for each piece (any colour) on its square. Orthogonal only, turns allowed, no going back over a square. Passing through a gate costs 1 and saves the piece.</li>
+<li>No moving onto lava or onto an empty first lava square. Any number of pieces may share a square.</li>
+<li>Pieces cut off from every gate go straight into the volcano.</li>
+<li><b>Exceptions:</b> with only 1 piece left in the city you may move it twice. A piece that started your turn alone on its square may also move twice.</li></ul>
+<h3>END</h3>
+<p>The game ends after the player who draws the last lava tile finishes their turn (or earlier if nobody is left in the city). Pieces still inside are lost. Most pieces saved wins; a tie goes to whoever has fewer pieces in the volcano.</p>
+<p><b>Dual vent variant (optional):</b> 3 extra double-sided tiles; when you draw one, choose which symbol to play.</p>`;
 
+/* ================= Setup and online play ================= */
 let setupMode = 'local';
+let setupDual = false;
 let setupCfg = [{house:0, ai:false, on:true}, {house:1, ai:true, on:true}, {house:2, ai:true, on:true}, {house:3, ai:true, on:false}];
 let onlineCfg = [{house:0, role:'me'}, {house:1, role:'friend'}, {house:2, role:'off'}, {house:3, role:'off'}];
 const ROLE_LABEL = {me:'Me', friend:'Friend', ai:'Computer', off:'Out'};
@@ -1006,11 +1133,13 @@ function setupHTML() {
     <p id="setupErr" class="err"></p>
     <div class="row-btns"><button class="btn primary" id="joinBtn">Join room</button><button class="btn" id="setupRules">How to play</button></div>`;
   }
-  return `<div class="mbox"><h2>Flight from Vesuvius</h2>${setupTabs()}${body}</div>`;
+  const dual = setupMode !== 'join' ? `<label class="chk"><input type="checkbox" id="dualChk" ${setupDual ? 'checked' : ''}> Dual vent variant (3 extra double-sided lava tiles)</label>` : '';
+  return `<div class="mbox"><h2>The Downfall of Pompeii</h2>${setupTabs()}${body.replace('<p id="setupErr"', dual + '<p id="setupErr"')}</div>`;
 }
 function setErr(t) { const e = document.getElementById('setupErr'); if (e) e.textContent = t; }
 function openSetup() {
   const m = document.getElementById('modal'); m.innerHTML = setupHTML(); m.hidden = false;
+  const dc = document.getElementById('dualChk'); if (dc) dc.onchange = () => { setupDual = dc.checked; };
   m.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { setupMode = b.dataset.mode; openSetup(); });
   m.querySelectorAll('.seg button[data-i]').forEach(b => b.onclick = () => { const c = setupCfg[+b.dataset.i]; if (b.dataset.v === 'off') c.on = false; else { c.on = true; c.ai = b.dataset.v === 'ai'; } openSetup(); });
   m.querySelectorAll('.seg button[data-oi]').forEach(b => b.onclick = () => {
@@ -1023,7 +1152,7 @@ function openSetup() {
   if (sb) sb.onclick = () => {
     const cfg = setupCfg.filter(c => c.on);
     if (!cfg.some(c => !c.ai)) { setErr('At least one household needs a player.'); return; }
-    m.hidden = true; m.innerHTML = ''; resetNet(); startGame(cfg);
+    m.hidden = true; m.innerHTML = ''; resetNet(); startGame(cfg, {dual:setupDual});
   };
   const hb = document.getElementById('hostBtn');
   if (hb) hb.onclick = () => {
@@ -1058,8 +1187,10 @@ function flushBroadcast() {
   for (const [seat, conn] of NET.conns) if (conn.open) conn.send({t:'state', s:snapshot(seat)});
 }
 function snapshot(seat) {
-  return {players:S.players.map((p, i) => ({...p, hand: i === seat ? p.hand : []})), cits:S.cits, deckN:S.deck.length,
-    lavaDeck:[...S.lavaDeck].sort(), lava:[...S.lava], phase:S.phase, stirred:S.stirred, cur:S.cur, tile:S.tile, fresh:S.fresh, log:S.log, over:S.over};
+  const key = t => t.dual ? 'z' + t.dual.join() : t.sym;
+  return {players:S.players.map((p, i) => ({...p, hand: i === seat ? p.hand : []})), cits:S.cits, deckN:S.deck.length, discard:S.discard,
+    bag:[...S.bag].sort((a, b) => key(a) < key(b) ? -1 : 1), lava:[...S.lava], phase:S.phase, stirred:S.stirred, cur:S.cur, tile:S.tile, fresh:S.fresh,
+    log:S.log, over:S.over, dual:S.dual, lavaPlaced:S.lavaPlaced, pool:S.pool};
 }
 function noPeerLib() { if (window.Peer) return false; setErr('Online play could not load its connection library. Check your internet connection and reload the page.'); return true; }
 
@@ -1101,7 +1232,7 @@ function renderLobby(note) {
   document.getElementById('cancelRoom').onclick = () => { resetNet(); openSetup(); };
   document.getElementById('beginOnline').onclick = () => {
     NET.started = true; m.hidden = true; m.innerHTML = '';
-    startGame(NET.seats.map(c => ({house:c.house, ai:c.role === 'ai', remote:c.role === 'friend'})));
+    startGame(NET.seats.map(c => ({house:c.house, ai:c.role === 'ai', remote:c.role === 'friend'})), {dual:setupDual});
   };
 }
 function onHostData(seat, d) {
@@ -1118,8 +1249,9 @@ function onGuestLeft(conn) {
   const spec = NET.pendingSpec.get(seat), r = NET.pending.get(seat);
   if (r) {
     NET.pending.delete(seat); NET.pendingSpec.delete(seat);
-    if (spec.kind === 'cell') r([...spec.cells][0]);
-    else if (spec.kind === 'place') r(spec.discard ? {idx:0, k:null} : (() => { const c = aiPlacement(seat); return {idx:c.idx, k:c.k}; })());
+    if (spec.kind === 'cell') r(spec.buttons && spec.buttons.some(b => b.value === 'skip') ? 'skip' : spec.cells[0]);
+    else if (spec.kind === 'place') { const i = spec.cardOpts.findIndex(o => o.cells.length); r(i < 0 ? {idx:0, k:null} : {idx:i, k:spec.cardOpts[i].cells[0]}); }
+    else if (spec.kind === 'choice') r(spec.buttons[0].value);
     else r(null);
   }
   const a = NET.acks.get(seat); if (a) { NET.acks.delete(seat); a(); }
@@ -1135,7 +1267,7 @@ function joinRoom(code) {
   const fail = t => { if (NET.peer !== peer) return; resetNet(); setupMode = 'join'; openSetup(); setErr(t); };
   peer.on('error', e => fail(e.type === 'peer-unavailable' ? `No open room with code ${code}. Check the code and that the host's page is still open.` : `Could not connect (${e.type}). Try again.`));
   peer.on('open', () => {
-    const conn = peer.connect(PEER_PREFIX + code, {reliable:true, serialization:'json'}); NET.host = conn;
+    const conn = peer.connect(PEER_PREFIX + code, {reliable:true}); NET.host = conn;
     conn.on('data', onGuestData);
     conn.on('close', () => { if (NET.host !== conn) return; const was = NET.mySeat != null; resetNet(); if (was) showInfo(`<h2>Disconnected</h2><p>The connection to the host was lost. Ask them to create a new room, then join again.</p>`); });
     setTimeout(() => { if (NET.host === conn && NET.mySeat == null) fail(`The room ${code} did not answer. Check the code and try again.`); }, 12000);
@@ -1157,8 +1289,7 @@ function onGuestData(d) {
     render();
   } else if (d.t === 'pick') {
     const sp = d.spec;
-    S.pick = {...sp, cells:new Set(sp.cells), moved:new Set(sp.moved), sel:null,
-      resolve: v => { S.pick = null; NET.host.send({t:'answer', v: sp.kind === 'move' && v ? {cid:v.cit.id, dest:v.dest} : v}); S.prompt = 'Sent. Waiting…'; render(); }};
+    S.pick = {...sp, sel:null, selCid:null, resolve: v => { S.pick = null; NET.host.send({t:'answer', v}); S.prompt = 'Sent. Waiting…'; render(); }};
     S.prompt = sp.prompt; render();
   } else if (d.t === 'card') {
     const mine = d.pi === NET.mySeat;
@@ -1169,25 +1300,24 @@ function onGuestData(d) {
     NET.host = null; resetNet(); showInfo(`<h2>The host closed the room</h2><p>Ask them for a new code to play again.</p>`);
   }
 }
-function startGame(cfg) { RUN++; S = newState(cfg); render(); gameLoop().catch(e => console.error(e)); }
+
+function startGame(cfg, opts) { RUN++; S = newState(cfg, opts); render(); gameLoop().catch(e => console.error(e)); }
 function gameOver() {
   if (NET.mode === 'host') { flushBroadcast(); for (const [, conn] of NET.conns) conn.send({t:'over'}); }
   const order = S.players.map((p, i) => ({p, i})).sort((a, b) => b.p.escaped - a.p.escaped || a.p.lost - b.p.lost);
-  const w = order[0];
-  const tie = order[1] && order[1].p.escaped === w.p.escaped && order[1].p.lost === w.p.lost;
-  setPrompt(tie ? 'The day ends in a tie.' : `The <b>${w.p.gens}</b> save the most of their household.`);
-  showInfo(`<h2>${tie ? 'A shared survival' : `The ${w.p.gens} endure`}</h2>
-    <p>${tie ? 'Two households brought out the same number of people.' : `Of the households of Pompeii, the ${hn(w.i)} brought the most of their people through the gates.`}</p>
-    ${order.map((o, r) => `<div class="result"><span class="rk">${['I','II','III','IV'][r]}</span><span><span class="dot" style="background:${o.p.color}"></span> <b>${o.p.gens}</b> <span style="color:var(--ash);font-size:.85rem">${o.p.ai ? 'computer' : 'player'}</span></span><span>${o.p.escaped} escaped · ${o.p.lost} lost</span></div>`).join('')}
-    <div style="margin-top:14px"><button class="btn primary" id="again">Play again</button></div>`);
+  const w = order[0], winners = order.filter(o => o.p.escaped === w.p.escaped && o.p.lost === w.p.lost);
+  setPrompt(winners.length > 1 ? 'The game ends in a tie.' : `The <b>${w.p.gens}</b> saved the most of their people.`);
+  showInfo(`<h2>${winners.length > 1 ? 'A shared survival' : `The ${w.p.gens} win`}</h2>
+    <p>${winners.length > 1 ? 'Tied on pieces saved and pieces in the volcano.' : `The ${hn(w.i)} saved the most pieces${order[1] && order[1].p.escaped === w.p.escaped ? ', and won the tie with fewer in the volcano' : ''}.`}</p>
+    ${order.map((o, r) => `<div class="result"><span class="rk">${r + 1}</span><span><span class="dot" style="background:${o.p.color}"></span> <b>${o.p.gens}</b> <span style="color:var(--ash);font-size:.85rem">${o.p.ai ? 'computer' : 'player'}</span></span><span>${o.p.escaped} saved · ${o.p.lost} in volcano</span></div>`).join('')}
+    <div class="row-btns" style="margin-top:14px"><button class="btn primary" id="again">Play again</button><a class="btn" href="../" style="text-decoration:none">← Game table</a></div>`);
   const a = document.getElementById('again'); if (a) a.onclick = () => { document.getElementById('modal').hidden = true; resetNet(); openSetup(); };
 }
 document.getElementById('rulesBtn').onclick = () => { const m = document.getElementById('modal'); if (!m.hidden) return; showInfo(RULES); };
 document.getElementById('newBtn').onclick = () => { const m = document.getElementById('modal'); m.hidden = true; m.innerHTML = ''; RUN++; resetNet(); openSetup(); };
 
-/* Preview board behind the setup screen */
 S = newState(setupCfg.filter(c => c.on));
-S.prompt = 'Choose your households to begin.';
+S.prompt = 'Choose your players to begin.';
 render();
 openSetup();
 </script>

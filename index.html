@@ -177,7 +177,7 @@ const GAMES=[
      <g fill="#c99556" stroke="#c99556" stroke-width="12" stroke-linejoin="round"><polygon points="${tip(8,-4)} ${tip(-4,8)} ${tip(-4,-4)}"/><polygon points="${tip(4,-8)} ${tip(4,4)} ${tip(-8,4)}"/></g>
      ${pts.map(p=>{const c=col(p);return c?`<circle cx="${X(p)}" cy="${Y(p)}" r="3.9" fill="${c}"/>`:`<circle cx="${X(p)}" cy="${Y(p)}" r="1.9" fill="#5b3a19"/>`}).join('')}
      <circle r="4.6" fill="#f6d68a" stroke="rgba(0,0,0,.35)"><animateMotion dur="4s" repeatCount="indefinite" path="M${cx-22} ${cy+2*H*2} q11 -16 22 -${4*H} q11 -16 22 -${4*H} q-11 -16 -22 -${4*H} L${cx-22} ${cy+2*H*2}"/></circle></svg>`}},
-  {path:'pompeii/',title:'Flight from Vesuvius',blurb:'Pompeii, AD 79. Settle your family in the city, then race them out through the seven gates as the lava spreads.',
+  {path:'pompeii/',title:'The Downfall of Pompeii',blurb:'AD 79. Bring your people into the city, then race them out through the seven gates as Vesuvius buries it in lava.',
    tags:['2–4 players','Online or same device'],
    art:()=>`<svg class="pm" viewBox="0 0 320 190" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="pmsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1210"/><stop offset=".7" stop-color="#7a2a16"/><stop offset="1" stop-color="#c4561f"/></linearGradient></defs>
      <rect width="320" height="190" fill="url(#pmsky)"/>

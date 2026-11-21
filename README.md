@@ -8,7 +8,7 @@ Browser board games. Open `index.html` to pick a game.
 | Go-Stop (화투) | `go-stop/` |
 | Wahoo | `wahoo/` |
 | Chinese Checkers | `chinese-checkers/` |
-| Flight from Vesuvius (Pompeii) | `pompeii/` |
+| The Downfall of Pompeii | `pompeii/` |
 
 ## Adding a game
 1. Put the game in its own folder with an `index.html`.
