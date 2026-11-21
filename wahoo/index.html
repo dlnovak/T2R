@@ -1,0 +1,380 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}.homeLink{display:inline-block;margin:0 0 10px;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px}
+.homeLink:hover{color:var(--fg)}
+</style></head><body>
+<title>Wahoo Marbles</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Work+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: classic six-player navy board, control rail beside it (stacks under on phones). */
+:root{
+  --bg:#dfe2ea; --panel:#f4f6fa; --fg:#141a2e; --muted:#59617a; --line:#c3c9d6;
+  --die:#fbfaf6; --pip:#1b1b1b;
+  --font-display:'Lilita One','Arial Black',system-ui,sans-serif;
+  --font-body:'Work Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b0e1a; --panel:#141a2c; --fg:#e6e9f2; --muted:#97a0b8; --line:#283049; --die:#f1f0ea; --pip:#151515; color-scheme:dark }}
+:root[data-theme="dark"]{ --bg:#0b0e1a; --panel:#141a2c; --fg:#e6e9f2; --muted:#97a0b8; --line:#283049; --die:#f1f0ea; --pip:#151515; color-scheme:dark }
+
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.45}
+.wrap{max-width:1100px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-family:var(--font-display);font-weight:400;font-size:clamp(30px,6vw,46px);line-height:1;margin:0;letter-spacing:.01em;text-wrap:balance}
+h1 span{display:inline-block}
+.tag{color:var(--muted);margin:0;font-size:14px}
+.game{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+@media (max-width:860px){.game{grid-template-columns:minmax(0,1fr)}}
+.board-wrap{position:relative;width:100%;max-width:700px;margin:0 auto}
+#board{width:100%;height:auto;display:block;filter:drop-shadow(0 10px 20px rgba(0,0,0,.35));touch-action:manipulation}
+.marble{transition:transform .16s ease-out;cursor:default}
+.marble .ring{fill:none;stroke-width:.08;opacity:0}
+.marble.can{cursor:pointer}
+.marble.can .ring{opacity:1;animation:pulse 1s ease-in-out infinite}
+.marble:focus{outline:none}
+.marble:focus-visible .ring{opacity:1;stroke:#fff}
+@keyframes pulse{0%,100%{stroke-opacity:1;stroke-width:.08}50%{stroke-opacity:.35;stroke-width:.16}}
+.target{stroke-dasharray:.12 .08;stroke-width:.07;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.marble{transition:none}.marble.can .ring{animation:none}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.turn{display:flex;align-items:center;gap:10px;font-weight:600;font-size:17px}
+.dot{width:14px;height:14px;border-radius:50%;flex:none;box-shadow:inset -2px -2px 3px rgba(0,0,0,.3),0 0 0 1px rgba(0,0,0,.25)}
+.rollrow{display:flex;align-items:center;gap:14px}
+#die{width:72px;height:72px;flex:none;filter:drop-shadow(0 3px 4px rgba(0,0,0,.25))}
+#roll{flex:1;font-family:var(--font-display);font-size:24px;letter-spacing:.03em;border:0;border-radius:12px;padding:16px 12px;cursor:pointer;color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.25),inset 0 0 0 1px rgba(0,0,0,.15);transition:transform .08s}
+#roll:active:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#roll:disabled{opacity:.45;cursor:not-allowed}
+#roll:focus-visible,button:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.msg{min-height:2.9em;margin:0;font-size:15px}
+.label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 8px}
+.players{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.players li{display:grid;grid-template-columns:14px 1fr auto;align-items:center;gap:10px}
+.players li.off{opacity:.4}
+.players .who small{color:var(--muted);margin-left:6px}
+.pegs{display:flex;gap:4px}
+.pegs i{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--line)}
+.log{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:13.5px;color:var(--muted)}
+.log li{display:flex;gap:8px;align-items:baseline}
+.log .dot{width:9px;height:9px;transform:translateY(1px)}
+details{border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:600}
+details ul{padding-left:20px;margin:10px 0 0;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.seats{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;margin-top:12px}
+.seats label{display:flex;align-items:center;gap:8px;font-weight:500}
+select{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.btn{font:inherit;font-weight:600;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--fg);color:var(--bg);cursor:pointer}
+.err{color:#c0392b;font-size:13px;margin:8px 0 0}
+.win{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.win-card{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:16px;padding:22px 26px;text-align:center;box-shadow:0 12px 30px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:12px;align-items:center}
+.win-card h2{font-family:var(--font-display);font-weight:400;font-size:34px;margin:0}
+</style>
+
+<div class="wrap">
+  <a class="homeLink" href="../">&larr; All games</a>
+  <header>
+    <h1><span>Wahoo</span> <span>Marbles</span></h1>
+    <p class="tag">Roll, race, and send rivals back to base.</p>
+  </header>
+  <div class="game">
+    <div class="board-wrap">
+      <svg id="board" viewBox="-10 -10 20 20" role="img" aria-label="Game board"></svg>
+      <div class="win" id="win" hidden>
+        <div class="win-card"><h2 id="winText">Red wins!</h2><button class="btn" id="again" type="button">Play again</button></div>
+      </div>
+    </div>
+    <aside class="panel">
+      <div class="turn"><span class="dot" id="turnDot"></span><span id="turnText">Red's turn</span></div>
+      <div class="rollrow">
+        <svg id="die" viewBox="0 0 100 100" aria-label="Die"></svg>
+        <button id="roll" type="button">Roll</button>
+      </div>
+      <p class="msg" id="msg" aria-live="polite"></p>
+      <div>
+        <p class="label">Marbles home</p>
+        <ul class="players" id="players"></ul>
+      </div>
+      <div>
+        <p class="label">Big moments</p>
+        <ul class="log" id="log"></ul>
+      </div>
+      <details id="setup">
+        <summary>New game</summary>
+        <div class="seats" id="seats"></div>
+        <p class="err" id="setupErr" hidden>Pick at least two players.</p>
+        <div style="margin-top:12px"><button class="btn" id="start" type="button">Start new game</button></div>
+      </details>
+      <details>
+        <summary>How to play</summary>
+        <ul>
+          <li>Roll a 1 or 6 to move a marble from your base strip onto your colored start square.</li>
+          <li>Marbles travel clockwise, out and back around every arm. Rolling a 6 earns another roll.</li>
+          <li>You can never jump or land on your own marbles. Jump rivals freely.</li>
+          <li>Land exactly on a rival to send it back to its base.</li>
+          <li>Shortcut: the six ringed holes near the middle are shortcut holes. The center hole counts as one space past any of them, so reach one with a pip to spare and the last pip drops you into the center. From the center, roll a 1 to pop out on the ringed hole just before your own arm.</li>
+          <li>After a full lap you turn down your arm's home strip. It needs an exact count. First to fill home wins.</li>
+          <li>Tap or hover a marble to see each hole numbered along its path.</li>
+        </ul>
+      </details>
+    </aside>
+  </div>
+</div>
+
+<script>
+const NS='http://www.w3.org/2000/svg';
+// clockwise from the top arm
+const COLORS=[
+  {name:'Red',c:'#e0374a',l:'#ff9fa8',d:'#7a0c19',ink:'#fff'},
+  {name:'Orange',c:'#f2802b',l:'#ffc590',d:'#8a3a05',ink:'#2a1200'},
+  {name:'Blue',c:'#2f9de0',l:'#a8dcff',d:'#0b4a7a',ink:'#fff'},
+  {name:'White',c:'#ecebe5',l:'#ffffff',d:'#8e8d86',ink:'#1a1a1a'},
+  {name:'Green',c:'#43ad4a',l:'#a9eaa9',d:'#14571a',ink:'#fff'},
+  {name:'Yellow',c:'#f2d43a',l:'#fff6b8',d:'#8a6d00',ink:'#2a2000'}
+];
+const NP=6, N=84, LAST=83, HOME0=84, HOMEEND=87, CENTER=99, EXIT=76;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+const $=id=>document.getElementById(id);
+
+/* ---------- geometry (board units, center at 0,0, one hole spacing = 1) ---------- */
+const deg=k=>-90+60*k;
+const rad=d=>d*Math.PI/180;
+function armPt(k,u,v){const a=rad(deg(k));return [u*Math.cos(a)-v*Math.sin(a),u*Math.sin(a)+v*Math.cos(a)];}
+function polar(d,r){return [r*Math.cos(rad(d)),r*Math.sin(rad(d))];}
+const TRACK=[];
+for(let k=0;k<NP;k++){
+  TRACK.push(polar(deg(k)-30,2.9));                       // ringed shortcut hole
+  for(let i=0;i<5;i++)TRACK.push(armPt(k,3.5+i,-1));       // out along the arm
+  TRACK.push(armPt(k,8.5,-1),armPt(k,8.5,0),armPt(k,8.5,1)); // across the tip
+  for(let i=0;i<5;i++)TRACK.push(armPt(k,7.5-i,1));        // back in
+}
+const STARS=new Set([0,14,28,42,56,70]);
+const HOME=[...Array(NP)].map((_,k)=>[7.5,6.5,5.5,4.5].map(u=>armPt(k,u,0)));
+const BASE=[...Array(NP)].map((_,k)=>[5.6,6.6,7.6,8.6].map(r=>polar(deg(k)+30,r)));
+const g=(pl,p)=>(pl*14+8+p)%N;
+function keyOf(pl,p){if(p<0)return null;if(p<=LAST)return 't'+g(pl,p);if(p<=HOMEEND)return 'h'+pl+'_'+(p-HOME0);return 'c';}
+function idxPos(pl,mi,p){if(p<0)return BASE[pl][mi];if(p<=LAST)return TRACK[g(pl,p)];if(p<=HOMEEND)return HOME[pl][p-HOME0];return [0,0];}
+
+/* ---------- board drawing ---------- */
+const board=$('board');
+const ACCENT='#3d8fd6';
+function drawBoard(){
+  const defs=el('defs',{},board);
+  const bg=el('linearGradient',{id:'navy',x1:0,y1:0,x2:1,y2:1},defs);
+  el('stop',{offset:0,'stop-color':'#1b2346'},bg);el('stop',{offset:1,'stop-color':'#0e1330'},bg);
+  const sheen=el('linearGradient',{id:'sheen',x1:0,y1:0,x2:1,y2:.6},defs);
+  el('stop',{offset:0,'stop-color':'#fff','stop-opacity':.07},sheen);el('stop',{offset:.5,'stop-color':'#fff','stop-opacity':0},sheen);
+  const pit=el('radialGradient',{id:'pit',cx:.62,cy:.65,r:.7},defs);
+  el('stop',{offset:0,'stop-color':'#c4b78f'},pit);el('stop',{offset:.7,'stop-color':'#9a8c63'},pit);el('stop',{offset:1,'stop-color':'#5d5236'},pit);
+  COLORS.forEach((k,i)=>{
+    const m=el('radialGradient',{id:'mg'+i,cx:.35,cy:.32,r:.75},defs);
+    el('stop',{offset:0,'stop-color':k.l},m);el('stop',{offset:.45,'stop-color':k.c},m);el('stop',{offset:1,'stop-color':k.d},m);
+  });
+  el('rect',{x:-9.75,y:-9.75,width:19.5,height:19.5,rx:.35,fill:'url(#navy)',stroke:'#2e3b74','stroke-width':.08},board);
+  el('rect',{x:-9.75,y:-9.75,width:19.5,height:19.5,rx:.35,fill:'url(#sheen)'},board);
+  el('line',{x1:0,y1:-9.7,x2:0,y2:9.7,stroke:'#000','stroke-opacity':.35,'stroke-width':.05},board); // fold crease
+
+  const strip=(angle,r0,r1,color,label,inner)=>{
+    const gg=el('g',{transform:`rotate(${angle})`},board);
+    const a0=inner?r0-1.04:r0-.52, a1=inner?r1+.52:r1+1.0, lx=inner?r0-.74:r1+.72;
+    el('rect',{x:a0-.14,y:-.66,width:a1-a0+.28,height:1.32,rx:.34,fill:'none',stroke:ACCENT,'stroke-width':.05,'stroke-opacity':.8},gg);
+    el('rect',{x:a0,y:-.52,width:a1-a0,height:1.04,rx:.24,fill:color},gg);
+    const r1x=lx-.72;
+    const t=el('text',{x:r1x+.72,y:0,'text-anchor':'middle','dominant-baseline':'middle','font-size':.2,'font-weight':700,'letter-spacing':.03,fill:'#000','fill-opacity':.55,'font-family':'Work Sans,system-ui,sans-serif',transform:`rotate(90 ${lx} 0)`},gg);
+    t.textContent=label;
+  };
+  for(let k=0;k<NP;k++){strip(deg(k),4.5,7.5,COLORS[k].c,'HOME',true);strip(deg(k)+30,5.6,8.6,COLORS[k].c,'BASE');}
+  // start squares
+  for(let k=0;k<NP;k++){const [x,y]=TRACK[g(k,0)];
+    const gg=el('g',{transform:`translate(${x} ${y}) rotate(${deg(k)+90})`},board);
+    el('rect',{x:-.5,y:-.5,width:1,height:1,rx:.16,fill:COLORS[k].c,stroke:'#000','stroke-opacity':.25,'stroke-width':.03},gg);}
+  // center ring of stars and shortcut lanes
+  for(const s of STARS){const [x,y]=TRACK[s];el('line',{x1:x,y1:y,x2:0,y2:0,stroke:ACCENT,'stroke-opacity':.4,'stroke-width':.06,'stroke-dasharray':'.14 .14','stroke-linecap':'round'},board);}
+  el('circle',{cx:0,cy:0,r:1.95,fill:'#0e1330',stroke:ACCENT,'stroke-opacity':.6,'stroke-width':.04},board);
+  for(let i=0;i<12;i++){const [x,y]=polar(i*30+15,1.55);el('path',{d:starPath(x,y,.17,.075),fill:ACCENT},board);}
+  for(const s of STARS){const [x,y]=TRACK[s];el('circle',{cx:x,cy:y,r:.47,fill:'none',stroke:ACCENT,'stroke-width':.06},board);}
+  el('circle',{cx:0,cy:0,r:.52,fill:'none',stroke:ACCENT,'stroke-width':.06},board);
+
+  const hole=(x,y,r=.29)=>{el('circle',{cx:x,cy:y,r,fill:'url(#pit)',stroke:'#000','stroke-opacity':.5,'stroke-width':.04},board);};
+  TRACK.forEach(([x,y])=>hole(x,y));
+  for(let k=0;k<NP;k++){HOME[k].forEach(([x,y])=>hole(x,y));BASE[k].forEach(([x,y])=>hole(x,y));}
+  hole(0,0,.33);
+  el('g',{id:'targets'},board);
+  el('g',{id:'marbles'},board);
+}
+function starPath(x,y,R,r){let d='';for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r:R;d+=(i?'L':'M')+(x+rr*Math.cos(a)).toFixed(3)+' '+(y+rr*Math.sin(a)).toFixed(3);}return d+'Z';}
+
+/* ---------- die ---------- */
+const PIPS={1:[[50,50]],2:[[29,29],[71,71]],3:[[27,27],[50,50],[73,73]],4:[[29,29],[71,29],[29,71],[71,71]],5:[[27,27],[73,27],[50,50],[27,73],[73,73]],6:[[29,25],[71,25],[29,50],[71,50],[29,75],[71,75]]};
+function drawDie(n){const d=$('die');d.innerHTML='';el('rect',{x:4,y:4,width:92,height:92,rx:18,style:'fill:var(--die);stroke:var(--line)','stroke-width':2},d);
+  if(!n)return;PIPS[n].forEach(([x,y])=>el('circle',{cx:x,cy:y,r:8.5,style:'fill:var(--pip)'},d));}
+
+/* ---------- state ---------- */
+let S={gen:0};
+let marbleEls=[];
+const name=pl=>COLORS[pl].name;
+const isActive=pl=>S.players[pl].type!=='off';
+function newGame(seats){
+  S={gen:(S.gen||0)+1,players:seats.map(t=>({type:t,m:[-1,-1,-1,-1]})),cur:seats.findIndex(t=>t!=='off'),phase:'roll',die:0,moves:[],log:[],msg:'',winner:null,sel:null};
+  S.msg=turnPrompt();
+  buildMarbles();render();kick();
+}
+function turnPrompt(){const P=S.players[S.cur];return P.type==='cpu'?`${name(S.cur)} is thinking…`:`${name(S.cur)}, roll the die.`;}
+function nextActive(pl){for(let i=1;i<=NP;i++){const q=(pl+i)%NP;if(isActive(q))return q;}return pl;}
+
+function ownAt(pl,key){return S.players[pl].m.some(p=>keyOf(pl,p)===key);}
+function clear(pl,from,to){const path=[];for(let k=from+1;k<=to;k++){if(ownAt(pl,keyOf(pl,k)))return null;path.push(k);}return path;}
+function legalMoves(pl,d){
+  const out=[];
+  S.players[pl].m.forEach((p,mi)=>{const opts=[];
+    if(p===-1){if((d===1||d===6)&&!ownAt(pl,keyOf(pl,0)))opts.push({to:0,path:[0]});}
+    else if(p===CENTER){if(d===1&&!ownAt(pl,keyOf(pl,EXIT)))opts.push({to:EXIT,path:[EXIT]});}
+    else{
+      const np=p+d;
+      if(np<=HOMEEND){const path=clear(pl,p,np);if(path)opts.push({to:np,path});}
+      const sp=p+d-1;
+      if(sp<=LAST&&sp<EXIT&&STARS.has(g(pl,sp))&&!ownAt(pl,'c')){const path=clear(pl,p,sp);if(path){path.push(CENTER);opts.push({to:CENTER,path,center:true});}}
+    }
+    if(opts.length)out.push({mi,opts});});
+  return out;
+}
+function rivalAt(pl,key){for(let q=0;q<NP;q++){if(q===pl||!isActive(q))continue;const j=S.players[q].m.findIndex(p=>keyOf(q,p)===key);if(j>=0)return {q,j};}return null;}
+function threatened(pl,a){
+  for(let q=0;q<NP;q++){if(q===pl||!isActive(q))continue;
+    for(const p of S.players[q].m){
+      if(p===-1){if(a===g(q,0))return true;continue;}
+      if(p<0||p>LAST)continue;const dist=(a-g(q,p)+N)%N;if(dist>=1&&dist<=6&&p+dist<=LAST)return true;}}
+  return false;
+}
+function pickCpu(pl,moves){
+  let best=null,bs=-1e9;
+  for(const mv of moves)for(const opt of mv.opts){
+    const p=S.players[pl].m[mv.mi];let s=0;
+    const v=rivalAt(pl,keyOf(pl,opt.to));if(v)s+=100+Math.max(0,Math.min(S.players[v.q].m[v.j],LAST));
+    if(opt.to>=HOME0&&opt.to<=HOMEEND)s+=70+opt.to-HOME0;
+    if(p===-1)s+=55;if(opt.to===CENTER)s+=45;if(p===CENTER)s+=40;
+    if(opt.to<=LAST&&threatened(pl,g(pl,opt.to)))s-=28;
+    if(p>=0&&p<=LAST&&threatened(pl,g(pl,p)))s+=18;
+    s+=(opt.to===CENTER?EXIT-4:opt.to)*.3+Math.random()*3;
+    if(s>bs){bs=s;best={mi:mv.mi,opt};}
+  }
+  return best;
+}
+
+/* ---------- marbles ---------- */
+function buildMarbles(){
+  const layer=$('marbles');layer.innerHTML='';marbleEls=[];
+  S.players.forEach((P,pl)=>{marbleEls[pl]=[];if(P.type==='off')return;
+    P.m.forEach((_,mi)=>{
+      const m=el('g',{class:'marble',tabindex:'-1','aria-label':`${name(pl)} marble ${mi+1}`},layer);
+      el('circle',{cx:.05,cy:.08,r:.36,fill:'#000','fill-opacity':.45},m);
+      el('circle',{r:.36,fill:`url(#mg${pl})`},m);
+      el('ellipse',{cx:-.12,cy:-.14,rx:.12,ry:.08,fill:'#fff','fill-opacity':.75},m);
+      el('circle',{r:.47,class:'ring',stroke:pl===3?'#ffffff':COLORS[pl].l},m);
+      m.addEventListener('click',()=>onMarble(pl,mi));
+      m.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onMarble(pl,mi);}});
+      m.addEventListener('pointerenter',()=>{if(!S.sel)previewTargets(pl,mi,false);});
+      m.addEventListener('pointerleave',()=>{if(!S.sel)clearTargets();});
+      marbleEls[pl][mi]=m;place(pl,mi);
+    });});
+}
+function place(pl,mi){const m=marbleEls[pl]&&marbleEls[pl][mi];if(!m)return;const [x,y]=idxPos(pl,mi,S.players[pl].m[mi]);m.style.transform=`translate(${x}px,${y}px)`;
+  if(S.players[pl].m[mi]!==-1)m.parentNode.appendChild(m);}
+function clearTargets(){$('targets').innerHTML='';}
+function previewTargets(pl,mi,clickable){
+  if(S.phase!=='move'||pl!==S.cur)return;const mv=S.moves.find(x=>x.mi===mi);if(!mv)return;
+  clearTargets();const T=$('targets'),col=pl===3?'#ffffff':COLORS[pl].c;
+  mv.opts.forEach(opt=>{
+    opt.path.forEach((step,i)=>{const [sx,sy]=idxPos(pl,mi,step);
+      el('circle',{cx:sx,cy:sy,r:.2,fill:'#fff','fill-opacity':.95,stroke:col,'stroke-width':.05,'pointer-events':'none'},T);
+      const t=el('text',{x:sx,y:sy+.012,'text-anchor':'middle','dominant-baseline':'middle','font-size':.26,'font-weight':700,fill:'#1a1a1a','font-family':'Work Sans,system-ui,sans-serif','pointer-events':'none'},T);t.textContent=i+1;});
+    const [x,y]=idxPos(pl,mi,opt.to);
+    const t=el('circle',{cx:x,cy:y,r:opt.to===CENTER?.55:.46,class:'target',fill:col,'fill-opacity':.3,stroke:col},T);
+    if(clickable){t.addEventListener('click',()=>doMove(pl,mi,opt));}else t.style.pointerEvents='none';});
+}
+function onMarble(pl,mi){
+  if(S.phase!=='move'||pl!==S.cur||S.players[pl].type!=='human')return;
+  const mv=S.moves.find(x=>x.mi===mi);if(!mv)return;
+  if(mv.opts.length===1){doMove(pl,mi,mv.opts[0]);return;}
+  S.sel={pl,mi};previewTargets(pl,mi,true);
+  S.msg='Two ways to go. Tap the center hole to take the shortcut, or the other ring to keep racing.';renderPanel();
+}
+
+/* ---------- turn flow ---------- */
+async function roll(){
+  if(S.phase!=='roll')return;const gen=S.gen;S.phase='rolling';render();
+  for(let i=0;i<7;i++){drawDie(1+Math.floor(Math.random()*6));await sleep(reduce?15:50);if(gen!==S.gen)return;}
+  const d=1+Math.floor(Math.random()*6);S.die=d;drawDie(d);
+  const pl=S.cur,moves=legalMoves(pl,d);S.moves=moves;
+  if(!moves.length){S.msg=`${name(pl)} rolled ${d}. No move possible.`;render();await sleep(S.players[pl].type==='cpu'?650:1000);if(gen!==S.gen)return;endTurn(d===6);return;}
+  if(S.players[pl].type==='cpu'){S.msg=`${name(pl)} rolled ${d}.`;render();await sleep(380);if(gen!==S.gen)return;const b=pickCpu(pl,moves);await doMove(pl,b.mi,b.opt);}
+  else{S.phase='move';S.msg=`${name(pl)} rolled ${d}. Tap a glowing marble to move it.`;render();}
+}
+async function doMove(pl,mi,opt){
+  if(S.phase!=='move'&&!(S.phase==='rolling'&&S.players[pl].type==='cpu'))return;
+  const gen=S.gen;S.phase='anim';S.sel=null;clearTargets();render();
+  const P=S.players[pl];const from=P.m[mi];
+  for(const step of opt.path){P.m[mi]=step;place(pl,mi);await sleep(reduce?40:150);if(gen!==S.gen)return;}
+  const v=rivalAt(pl,keyOf(pl,opt.to));
+  if(v){S.players[v.q].m[v.j]=-1;place(v.q,v.j);addLog(pl,`${name(pl)} sent ${name(v.q)} back to base.`);}
+  else if(opt.to===CENTER)addLog(pl,`${name(pl)} dropped into the center.`);
+  else if(from===CENTER)addLog(pl,`${name(pl)} popped out of the center.`);
+  else if(opt.to>=HOME0)addLog(pl,`${name(pl)} got a marble home.`);
+  if(P.m.every(p=>p>=HOME0&&p<=HOMEEND)){S.phase='over';S.winner=pl;addLog(pl,`${name(pl)} wins!`);S.msg=`${name(pl)} filled home first.`;render();return;}
+  endTurn(S.die===6);
+}
+function endTurn(extra){
+  if(S.phase==='over')return;
+  if(!extra)S.cur=nextActive(S.cur);
+  S.phase='roll';S.moves=[];
+  S.msg=extra?`${name(S.cur)} rolled a 6 and goes again.`:turnPrompt();
+  render();kick();
+}
+function kick(){const gen=S.gen;if(S.phase==='roll'&&S.players[S.cur].type==='cpu')setTimeout(()=>{if(gen===S.gen)roll();},reduce?200:550);}
+function addLog(pl,text){S.log.unshift({pl,text});S.log=S.log.slice(0,6);}
+
+/* ---------- panel ---------- */
+function render(){renderPanel();
+  S.players.forEach((P,pl)=>(marbleEls[pl]||[]).forEach((m,mi)=>{if(!m)return;
+    const can=S.phase==='move'&&pl===S.cur&&P.type==='human'&&S.moves.some(x=>x.mi===mi);
+    m.classList.toggle('can',can);m.setAttribute('tabindex',can?'0':'-1');}));
+  $('win').hidden=S.phase!=='over';
+  if(S.phase==='over'){const w=S.players.filter(p=>p.type==='human').length===1&&S.players[S.winner].type==='human';$('winText').textContent=w?'You win!':`${name(S.winner)} wins!`;}
+}
+function renderPanel(){
+  const k=COLORS[S.cur],P=S.players[S.cur];
+  $('turnDot').style.background=k.c;
+  $('turnText').textContent=`${k.name}'s turn · ${P.type==='cpu'?'Computer':'You'}`;
+  const r=$('roll');r.style.background=k.c;r.style.color=k.ink;
+  r.disabled=!(S.phase==='roll'&&P.type==='human');
+  r.textContent=S.phase==='rolling'?'Rolling…':'Roll';
+  $('msg').textContent=S.msg;
+  $('players').innerHTML=S.players.map((p,pl)=>{const home=p.m.filter(x=>x>=HOME0&&x<=HOMEEND).length;
+    return `<li class="${p.type==='off'?'off':''}"><span class="dot" style="background:${COLORS[pl].c}"></span><span class="who">${COLORS[pl].name}<small>${p.type==='off'?'Not playing':p.type==='cpu'?'Computer':'You'}</small></span><span class="pegs">${[0,1,2,3].map(i=>`<i style="${i<home?`background:${COLORS[pl].c};border-color:${COLORS[pl].d}`:''}"></i>`).join('')}</span></li>`;}).join('');
+  $('log').innerHTML=S.log.length?S.log.map(e=>`<li><span class="dot" style="background:${COLORS[e.pl].c}"></span><span>${e.text}</span></li>`).join(''):'<li>Captures and shortcuts show up here.</li>';
+}
+
+/* ---------- setup ---------- */
+const seatDefaults=['human','off','cpu','off','cpu','off'];
+$('seats').innerHTML=COLORS.map((k,i)=>`<label for="seat${i}"><span class="dot" style="background:${k.c}"></span>${k.name}</label><select id="seat${i}"><option value="human">Person</option><option value="cpu">Computer</option><option value="off">Not playing</option></select>`).join('');
+seatDefaults.forEach((v,i)=>$('seat'+i).value=v);
+$('start').addEventListener('click',()=>{const seats=COLORS.map((_,i)=>$('seat'+i).value);
+  if(seats.filter(s=>s!=='off').length<2){$('setupErr').hidden=false;return;}
+  $('setupErr').hidden=true;$('setup').open=false;newGame(seats);});
+$('again').addEventListener('click',()=>newGame(S.players.map(p=>p.type)));
+$('roll').addEventListener('click',roll);
+document.addEventListener('keydown',e=>{if(e.key==='r'&&!e.target.closest('select,input'))roll();});
+$('board').addEventListener('click',e=>{if(S.sel&&!e.target.closest('.marble,.target')){S.sel=null;clearTargets();}});
+
+drawBoard();drawDie(0);
+function start(data){
+  if(data&&data.S&&data.S.players&&data.S.players.length===NP){S=data.S;S.gen=(S.gen||0)+1;S.sel=null;if(S.phase!=='over'){S.phase='roll';S.moves=[];S.msg=turnPrompt();}
+    buildMarbles();if(S.die)drawDie(S.die);render();kick();}
+  else newGame(seatDefaults);
+}
+window.claude?.hot?.snapshot?.(()=>({S}));
+window.claude?.hot?.ready?window.claude.hot.ready(start):start(window.claude?.hot?.data??{});
+</script>
+
+</body></html>
