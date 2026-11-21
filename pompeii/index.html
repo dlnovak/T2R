@@ -76,7 +76,7 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
 .clatin{font-family:var(--flavor);font-style:italic;font-size:.95em;color:#7a5634;padding:0 .6em}
 .cfact{font-size:.93em;line-height:1.3;padding:.35em .6em .2em;margin:0;flex:1}
 .cfoot{display:flex;justify-content:space-between;align-items:flex-end;padding:.25em .6em .55em;font-family:var(--display);font-size:.8em;font-weight:700;letter-spacing:.06em;color:#5b3f27}
-.cfoot svg{width:4.4em;height:4.4em;border:1px solid rgba(0,0,0,.35);border-radius:.2em}
+.cfoot svg{width:5.6em;height:3.9em;border:1px solid rgba(0,0,0,.35);border-radius:.2em}
 .ceffect{margin:.2em .6em .6em;padding:.45em .55em;border:1px solid rgba(37,24,15,.45);border-radius:.35em;background:rgba(255,255,255,.35);font-size:.92em;line-height:1.3;font-weight:500}
 .ceffect b{font-family:var(--display);font-size:.85em;letter-spacing:.08em;display:block;color:var(--fresco)}
 .pcard{background:linear-gradient(170deg,#ece1cf,#d5c3a6)}
@@ -138,10 +138,10 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
   header{padding:0 0 6px;margin-bottom:8px;flex-wrap:nowrap}
   h1{font-size:1.25rem}
   h1 small{display:inline;margin-left:10px}
-  .layout{flex:1;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:stretch}
-  .boardcol{height:100%;aspect-ratio:1/1;min-height:0}
-  .boardwrap{height:100%;margin:0;padding:4px;display:flex;align-items:center;justify-content:center}
-  #board{height:100%;width:auto;max-width:100%}
+  .layout{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,57fr) minmax(0,43fr);gap:14px;align-items:stretch}
+  .boardcol{min-height:0;display:flex;align-items:flex-start}
+  .boardwrap{width:100%;max-height:100%;margin:0;padding:4px;display:flex;align-items:center;justify-content:center}
+  #board{width:100%;height:auto;max-height:calc(100vh - 80px);max-width:100%}
   .panelcol{margin:0;min-height:0;gap:8px}
   .toprow{flex-direction:row;align-items:stretch;gap:8px}
   .mountain{flex-direction:column;justify-content:center;text-align:center;padding:6px 10px;gap:4px;flex:0 0 auto}
@@ -157,7 +157,7 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
   .handwrap{flex:0 0 auto}
   .handwrap .section-h{margin:0 0 2px}
   .hand{overflow:visible;padding:6px 2px 8px;gap:1.2vh}
-  .hand .card{font-size:clamp(7px,1.22vh,13px)}
+  .hand .card{font-size:clamp(6px,min(1.22vh,.6vw),13px)}
   .hand .discard .card{font-size:clamp(5px,.78vh,8px)}
   .hand-note{max-width:60ch}
   .bottomrow{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:8px}
@@ -203,7 +203,7 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
     <button class="btn" id="newBtn">New game</button>
   </header>
   <div class="layout">
-    <div class="boardcol"><div class="boardwrap"><svg id="board" viewBox="-70 -70 660 660" role="img" aria-label="Map of Pompeii and the countryside around its walls"></svg></div></div>
+    <div class="boardcol"><div class="boardwrap"><svg id="board" viewBox="-60 -60 640 480" role="img" aria-label="Map of Pompeii and the countryside around its walls"></svg></div></div>
     <div class="panelcol">
       <div class="toprow">
         <div class="mountain" id="mountain"></div>
@@ -230,11 +230,13 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
    Rules follow the published rulebook (The Downfall of Pompeii, 2nd English edition).
    Board art and the exact positions of buildings on this map are original.
    Values marked [EST] could not be read clearly from the photos and are best estimates. */
-const N = 13, CS = 40;
+const N = 13, NR = 9, CS = 40;   // 11 x 7 city squares, plus a ring for the gates
 const K = (c, r) => c + ',' + r;
 const P = k => k.split(',').map(Number);
 const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
-const interior = (c, r) => c >= 1 && c <= 11 && r >= 1 && r <= 11;
+/* Squares inside the board's grid that lie outside the city wall */
+const OUTSIDE = new Set(['9,1','10,1','11,1','11,2','1,7','2,7','3,7']);
+const interior = (c, r) => c >= 1 && c <= 11 && r >= 1 && r <= 7 && !OUTSIDE.has(c + ',' + r);
 const INK = '#2b1d14', COL = '#f3e8cc';
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hash(c, r) { return ((c * 73856093) ^ (r * 19349663)) >>> 0; }
@@ -249,23 +251,23 @@ const PRAE = ['Gaius','Lucius','Marcus','Publius','Quintus','Titus','Aulus','Dec
 const COGF = ['Prima','Secunda','Tertia','Maxima','Paulla','Rufa','Iusta','Fortunata','Felicula','Quarta','Quinta','Secundilla','Prisca','Vera','Lucilla'];
 
 const GATES = [
-  {id:1, name:'Porta Marina',   c:0,  r:7},
-  {id:2, name:'Porta Ercolano', c:2,  r:0},
-  {id:3, name:'Porta Vesuvio',  c:6,  r:0},
-  {id:4, name:'Porta di Nola',  c:12, r:3},
-  {id:5, name:'Porta di Sarno', c:12, r:7},
-  {id:6, name:'Porta di Nocera',c:10, r:12},
-  {id:7, name:'Porta di Stabia',c:6,  r:12},
+  {id:1, name:'Porta Ercolano', c:0,  r:1},
+  {id:2, name:'Porta Vesuvio',  c:6,  r:0},
+  {id:3, name:'Porta di Nola',  c:10, r:1},
+  {id:4, name:'Porta di Sarno', c:12, r:5},
+  {id:5, name:'Porta Nocera',   c:9,  r:8},
+  {id:6, name:'Porta di Stabia',c:7,  r:8},
+  {id:7, name:'Porta Marina',   c:0,  r:5},
 ];
 const GATE_BY_KEY = new Map();
 GATES.forEach(g => {
   g.k = K(g.c, g.r);
-  g.inner = g.r === 0 ? K(g.c,1) : g.r === 12 ? K(g.c,11) : g.c === 0 ? K(1,g.r) : K(11,g.r);
-  g.rot = g.r === 0 ? 0 : g.r === 12 ? 180 : g.c === 0 ? -90 : 90;
+  const [dc, dr] = DIRS.find(([dc, dr]) => interior(g.c + dc, g.r + dr)); g.inner = K(g.c + dc, g.r + dr);
+  g.dir = [dc, dr];                                   // direction from the gate into the city
+  g.rot = dr === 1 ? 0 : dr === -1 ? 180 : dc === 1 ? -90 : 90;
   GATE_BY_KEY.set(g.k, g);
 });
 const ROAD = new Set();
-for (let i = 1; i <= 11; i++) { ROAD.add(K(i,7)); ROAD.add(K(6,i)); ROAD.add(K(i,3)); ROAD.add(K(2,i)); ROAD.add(K(10,i)); }
 
 /* The 4 building colours of the game */
 const BCOL = {
@@ -278,27 +280,27 @@ const BCOL = {
    cells: [col, row, spaces]. One Pompeii card exists per space (rulebook p.4).
    Space counts per building part checked against the board picture in the rulebook PDF (53 in total). */
 const BUILD = [
-  {n:1,  color:'gray',   icon:'forum',   name:'Forum', parts:[{name:'Forum', cells:[[3,8,2],[4,8,2]]}],
+  {n:1,  color:'gray',   icon:'forum',   name:'Forum', parts:[{name:'Forum', cells:[[1,2,2],[2,2,2]]}],
    fact:'The civic heart of the city. Its Temple of Jupiter was still being repaired from the earthquake of AD 62 when the mountain woke.'},
-  {n:2,  color:'purple', icon:'faun',    name:'House of the Faun', parts:[{name:'House of the Faun', cells:[[3,4,2],[4,4,2]]}],
+  {n:2,  color:'purple', icon:'faun',    name:'House of the Faun', parts:[{name:'House of the Faun', cells:[[5,1,2],[5,2,2]]}],
    fact:'A mansion filling a whole city block, named for its dancing bronze faun. The Alexander Mosaic covered one floor.'},
-  {n:3,  color:'purple', icon:'vettii',  name:'Vettii & Golden Cupids', parts:[{name:'House of the Vettii', cells:[[3,1,3]]}, {name:'House of the Golden Cupids', cells:[[5,1,2]]}],
+  {n:3,  color:'purple', icon:'vettii',  name:'Vettii & Golden Cupids', parts:[{name:'House of the Vettii', cells:[[3,3,3]]}, {name:'House of the Golden Cupids', cells:[[4,3,2]]}],
    fact:'The Vettii brothers were freed slaves who grew rich in trade. Next door, gold-leaf cupids set in glass gave a house its name.'},
-  {n:4,  color:'gray',   icon:'baths',   name:'The Baths', parts:[{name:'Stabian Baths', cells:[[7,8,4]]}, {name:'Forum Baths', cells:[[4,6,3]]}],
+  {n:4,  color:'gray',   icon:'baths',   name:'The Baths', parts:[{name:'Forum Baths', cells:[[6,3,3]]}, {name:'Stabian Baths', cells:[[7,3,4]]}],
    fact:'Public baths had separate suites for men and women, warmed by hollow hypocaust floors. The Stabian Baths are the oldest in town.'},
-  {n:5,  color:'purple', icon:'vettii',  name:'House of Menander', parts:[{name:'House of Menander', cells:[[9,8,2],[9,9,2]]}],
+  {n:5,  color:'purple', icon:'vettii',  name:'House of Menander', parts:[{name:'House of Menander', cells:[[9,3,4]]}],
    fact:'Named for a painting of the Greek playwright Menander. A chest of 118 silver vessels was found hidden in its cellar.'},
-  {n:6,  color:'turq',   icon:'fullery', name:'Fullery & Macellum', parts:[{name:'Fullery of Stephanus', cells:[[7,5,3]]}, {name:'Macellum', cells:[[9,4,4]]}],
+  {n:6,  color:'turq',   icon:'fullery', name:'Fullery & Macellum', parts:[{name:'Fullery of Stephanus', cells:[[3,4,2],[3,5,1]]}, {name:'Macellum', cells:[[4,4,2],[4,5,2]]}],
    fact:'Fullers cleaned cloth by treading it in vats of water and urine. At the Macellum food market, fish scales were found in the drain.'},
-  {n:7,  color:'purple', icon:'faun',    name:'House of the Tragic Poet', parts:[{name:'House of the Tragic Poet', cells:[[1,5,3]]}],
+  {n:7,  color:'purple', icon:'faun',    name:'House of the Tragic Poet', parts:[{name:'House of the Tragic Poet', cells:[[6,5,3]]}],
    fact:'Its doorway mosaic shows a chained dog above the words CAVE CANEM: beware of the dog.'},
-  {n:8,  color:'gray',   icon:'temple',  name:'The Temples', parts:[{name:'Temple of Apollo', cells:[[1,8,3]]}, {name:'Temple of Jupiter', cells:[[3,9,2]]}],
+  {n:8,  color:'gray',   icon:'temple',  name:'The Temples', parts:[{name:'Temple of Apollo', cells:[[7,4,3]]}, {name:'Temple of Jupiter', cells:[[7,5,2]]}],
    fact:'A bronze Apollo, drawing his bow, stood before his colonnade. Jupiter\'s temple closed the north end of the Forum.'},
-  {n:9,  color:'turq',   icon:'bakery',  name:'Bakery of Modestus', parts:[{name:'Bakery of Modestus', cells:[[8,2,4]]}],
+  {n:9,  color:'turq',   icon:'bakery',  name:'Bakery of Modestus', parts:[{name:'Bakery of Modestus', cells:[[5,6,4]]}],
    fact:'81 carbonised loaves were found still in its oven, each scored into eight wedges for breaking.'},
-  {n:10, color:'brown',  icon:'theatre', name:'The Theatres', parts:[{name:'Large Theatre', cells:[[8,11,3]]}, {name:'Odeon', cells:[[7,11,2]]}],
+  {n:10, color:'brown',  icon:'theatre', name:'The Theatres', parts:[{name:'Odeon', cells:[[6,6,3]]}, {name:'Large Theatre', cells:[[6,7,2]]}],
    fact:'The Large Theatre seated about 5,000. The roofed Odeon beside it held around 1,500 for music and recitals.'},
-  {n:11, color:'brown',  icon:'amphi',   name:'Amphitheatre & Barracks', parts:[{name:'Amphitheatre', cells:[[11,9,3]]}, {name:'Gladiators\' Barracks', cells:[[11,11,2]]}],
+  {n:11, color:'brown',  icon:'amphi',   name:'Barracks & Amphitheatre', parts:[{name:'Gladiators\' Barracks', cells:[[9,6,1],[10,6,0],[9,7,1]]}, {name:'Amphitheatre', cells:[[11,6,2],[11,7,1]]}],
    fact:'The oldest surviving stone amphitheatre, built about 70 BC. A riot there in AD 59 got its games banned for ten years.'},
 ];
 const BY_NUM = new Map();
@@ -311,24 +313,25 @@ BUILD.forEach(b => {
 });
 /* Six lava symbols with their "first lava squares". 45 tiles: vase, helmet, mask 7 each; scroll, column, coin 8 each */
 const SYMS = [
-  {id:'vase',   name:'Vase',   count:7, origin:K(1,11), color:'#e9a15a'},
-  {id:'helmet', name:'Helmet', count:7, origin:K(11,5), color:'#d0d4da'},
-  {id:'mask',   name:'Mask',   count:7, origin:K(8,6),  color:'#7fb2ea'},
-  {id:'scroll', name:'Scroll', count:8, origin:K(5,9),  color:'#f0deb0'},
-  {id:'column', name:'Column', count:8, origin:K(5,5),  color:'#f4f1ea'},
-  {id:'coin',   name:'Coin',   count:8, origin:K(4,2),  color:'#f2c14e'},
+  {id:'vase',   name:'Vase',   count:7, origin:K(11,3), color:'#7fd6cf'},
+  {id:'helmet', name:'Helmet', count:7, origin:K(10,7), color:'#d9935a'},
+  {id:'mask',   name:'Mask',   count:7, origin:K(4,7),  color:'#7fa6f0'},
+  {id:'scroll', name:'Scroll', count:8, origin:K(8,1),  color:'#f0deb0'},
+  {id:'column', name:'Column', count:8, origin:K(5,4),  color:'#f4f1ea'},
+  {id:'coin',   name:'Coin',   count:8, origin:K(3,2),  color:'#f2c14e'},
 ];
 const SYM = Object.fromEntries(SYMS.map(s => [s.id, s]));
 const VENT_AT = new Map(SYMS.map(s => [s.origin, s]));
 /* Dual vent variant: 3 double-sided tiles. [EST] which symbol pairs appear on them */
 const DUALS = [['mask','coin'], ['vase','column'], ['helmet','scroll']];
-/* Neutral (beige, unnumbered) buildings: original placement on this map */
-const PLAIN = new Set();
-for (let r = 1; r <= 11; r++) for (let c = 1; c <= 11; c++) {
-  const k = K(c, r); if (ROAD.has(k) || CELLINFO.has(k) || VENT_AT.has(k)) continue;
-  const h = hash(c, r) % 10;
-  if (h < 6) CELLINFO.set(k, {neutral:true, cap:1 + (hash(r, c) % 3), id:'n' + k}); else PLAIN.add(k);
-}
+/* Neutral (beige) buildings with spaces, as on the board: [col, row, spaces] */
+[[2,1,1],[7,1,2],[4,2,3],[8,2,2],[1,3,2],[5,3,2],[2,4,3],[8,4,3],[10,4,2],[11,4,1],[2,6,2],[4,6,2],[8,6,2]]
+  .forEach(([c, r, cap]) => CELLINFO.set(K(c, r), {neutral:true, cap, id:'n' + K(c, r)}));
+/* Everything else on the board is scenery (houses without spaces, colonnades, fountains...) */
+const DECOR = {'1,1':'open','3,1':'trees','4,1':'house','6,1':'open','6,2':'house','7,2':'colonnade','9,2':'house','10,2':'open',
+  '2,3':'fountain','8,3':'fountain','10,3':'trees','1,4':'house','6,4':'colonnade','9,4':'house','1,5':'open','2,5':'colonnade',
+  '5,5':'ruins','8,5':'statue','9,5':'colonnade','10,5':'colonnade','11,5':'open','1,6':'ruins','3,6':'house','7,6':'house',
+  '5,7':'house','7,7':'colonnade','8,7':'house'};
 const capAt = k => CELLINFO.has(k) ? CELLINFO.get(k).cap : 0;
 const bidOf = k => { const i = CELLINFO.get(k); return i.neutral ? i.id : 'b' + i.b.n; }; // "building" for the one-relative-per-building rule
 
@@ -362,13 +365,14 @@ function tileSVG(t) {
 
 /* ================= Cards ================= */
 function miniMap(b) {
-  let s = `<svg viewBox="0 0 13 13" aria-hidden="true"><rect width="13" height="13" fill="#4b423b"/>`;
-  for (let r = 1; r <= 11; r++) for (let c = 1; c <= 11; c++) {
+  let s = `<svg viewBox="0 0 13 9" aria-hidden="true"><rect width="13" height="9" fill="#7d9a4f"/>`;
+  for (let r = 1; r <= 7; r++) for (let c = 1; c <= 11; c++) {
+    if (!interior(c, r)) continue;
     const k = K(c,r), i = CELLINFO.get(k);
-    const f = i && i.b === b ? '#9b2d20' : ROAD.has(k) ? '#6f6a64' : '#e3d3b0';
+    const f = i && i.b === b ? '#9b2d20' : '#e3d3b0';
     s += `<rect x="${c}" y="${r}" width="1" height="1" fill="${f}"/>`;
   }
-  GATES.forEach(g => s += `<rect x="${g.c}" y="${g.r}" width="1" height="1" fill="#1b120e"/>`);
+  GATES.forEach(g => s += `<rect x="${g.c + .15}" y="${g.r + .15}" width=".7" height=".7" fill="#1b120e"/>`);
   return s + '</svg>';
 }
 function spaceGroups(b) { return b.parts.map(pt => `<span class="grp">${'<i></i>'.repeat(pt.cap)}</span>`).join(''); }
@@ -591,37 +595,60 @@ const ICON = {
 
 /* ---- Static scenery (countryside, trees), generated once ---- */
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+/* Board drawing area: city grid is 520 x 360; countryside margin around it */
+const VB = {x:-60, y:-60, w:640, h:480};
 const ROADS_OUT = GATES.map(g => {
-  const cx = g.c * CS + 20, cy = g.r * CS + 20;
-  if (g.r === 0) return `M${cx} ${cy} C${cx} -20 ${cx - 30} -40 ${cx - 40} -70`;
-  if (g.r === 12) return `M${cx} ${cy} C${cx} 540 ${cx + 20} 560 ${cx + 30} 590`;
-  if (g.c === 0) return `M${cx} ${cy} C-20 ${cy} -30 ${cy + 10} -45 ${cy + 14}`;
-  return `M${cx} ${cy} C540 ${cy} 560 ${cy - 20} 590 ${cy - 30}`;
+  const cx = g.c*CS + 20, cy = g.r*CS + 20, [dx, dy] = g.dir.map(v => -v);   // outward
+  const far = (dx ? (dx > 0 ? VB.x + VB.w : VB.x) - cx : (dy > 0 ? VB.y + VB.h : VB.y) - cy);
+  const L = Math.abs(far) + 10, bend = (g.id % 2 ? 1 : -1) * 26;
+  return dx ? `M${cx} ${cy} C${cx + dx*L*.45} ${cy} ${cx + dx*L*.6} ${cy + bend} ${cx + dx*L} ${cy + bend*1.4}`
+            : `M${cx} ${cy} C${cx} ${cy + dy*L*.45} ${cx + bend} ${cy + dy*L*.6} ${cx + bend*1.4} ${cy + dy*L}`;
 });
+const nearCity = (x, y, pad) => { for (const [dx, dy] of [[0,0],[pad,0],[-pad,0],[0,pad],[0,-pad]]) { const c = Math.floor((x+dx)/CS), r = Math.floor((y+dy)/CS); if (interior(c, r)) return true; } return false; };
 const SCENERY = (() => {
   const R = rng(79); let s = '';
-  // fields and vineyards
-  const fields = [[-62,90,48,90,-4],[548,40,40,110,6],[540,250,46,80,-3],[110,532,120,48,3],[330,535,120,45,-5],[200,-62,140,42,2],[-60,380,44,100,4],[380,-60,120,44,-2]];
-  fields.forEach(([x,y,w,h,a], i) => {
+  [[-55,170,40,90,-4],[525,20,50,90,6],[300,385,120,40,-3],[60,395,110,38,4],[540,300,40,80,3],[250,-55,90,32,2],[420,-50,110,34,-2]].forEach(([x,y,w,h,a], i) => {
     s += `<g transform="rotate(${a} ${x + w/2} ${y + h/2})"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${i % 2 ? '#a7b862' : '#8fa955'}" stroke="#7a9446" stroke-width="1"/>`;
     const vert = h > w; for (let t = 6; t < (vert ? w : h); t += 6) s += vert ? `<path d="M${x + t} ${y + 4} v${h - 8}" stroke="#6f8a3e" stroke-width="2" stroke-dasharray="3 2"/>` : `<path d="M${x + 4} ${y + t} h${w - 8}" stroke="#6f8a3e" stroke-width="2" stroke-dasharray="3 2"/>`;
     s += '</g>';
   });
-  // trees: cypresses and umbrella pines in the margin, avoiding gate roads
-  const nearRoad = (x, y) => GATES.some(g => { const gx = g.c*CS+20, gy = g.r*CS+20; return (g.r === 0 || g.r === 12) ? Math.abs(x - gx) < 30 && Math.abs(y - gy) < 110 : Math.abs(y - gy) < 30 && Math.abs(x - gx) < 110; });
-  for (let i = 0; i < 260; i++) {
-    const x = -66 + R() * 652, y = -66 + R() * 652;
-    if (x > -6 && x < 526 && y > -6 && y < 526) continue;
-    if (x < -30 && y > 150 && y < 380) continue; // coast
-    if (x < 10 && y < 10) continue;              // mountain corner
+  const nearRoad = (x, y) => GATES.some(g => { const gx = g.c*CS+20, gy = g.r*CS+20; return g.dir[0] ? Math.abs(y - gy) < 34 && Math.abs(x - gx) < 120 : Math.abs(x - gx) < 34 && Math.abs(y - gy) < 120; });
+  for (let i = 0; i < 300; i++) {
+    const x = VB.x + 6 + R() * (VB.w - 12), y = VB.y + 6 + R() * (VB.h - 12);
+    if (nearCity(x, y, 26)) continue;
+    if (x < 110 && y < 30) continue;   // Vesuvius corner
     if (nearRoad(x, y)) continue;
     if (R() < .5) s += `<ellipse cx="${x + 2}" cy="${y + 5}" rx="3" ry="2" fill="rgba(0,0,0,.25)"/><ellipse cx="${x}" cy="${y}" rx="2.6" ry="7" fill="#2f5a34" stroke="#1f3f24" stroke-width=".7"/>`;
     else { const r = 4 + R() * 3; s += `<circle cx="${x + 2}" cy="${y + 3}" r="${r}" fill="rgba(0,0,0,.22)"/><circle cx="${x}" cy="${y}" r="${r}" fill="#4f7a3a" stroke="#355a28" stroke-width=".8"/><circle cx="${x - r/3}" cy="${y - r/3}" r="${r/2.2}" fill="#6a9550"/>`; }
   }
   return s;
 })();
-
-/* ---- Building art, drawn top-down inside each building's own squares ---- */
+/* City wall: every edge between a city square and a square outside the city */
+const WALL = (() => {
+  const segs = [];
+  for (let r = 0; r <= NR; r++) for (let c = 0; c <= N; c++) {
+    if (!interior(c, r)) continue; const x = c*CS, y = r*CS;
+    if (!interior(c, r-1)) segs.push([x, y, x+40, y]);
+    if (!interior(c, r+1)) segs.push([x, y+40, x+40, y+40]);
+    if (!interior(c-1, r)) segs.push([x, y, x, y+40]);
+    if (!interior(c+1, r)) segs.push([x+40, y, x+40, y+40]);
+  }
+  const d = segs.map(([a,b,c,e]) => `M${a} ${b} L${c} ${e}`).join(' ');
+  return `<path d="${d}" stroke="#5b5046" stroke-width="15" stroke-linecap="square" fill="none"/><path d="${d}" stroke="#ece4d4" stroke-width="10" stroke-linecap="square" fill="none"/><path d="${d}" stroke="#bdb19d" stroke-width="1" stroke-dasharray="5 3" fill="none"/>`;
+})();
+function decorArt(type, c, r) {
+  const x = c*CS, y = r*CS, h = hash(c, r);
+  let s = `<rect x="${x}" y="${y}" width="40" height="40" fill="#dccca6"/><circle cx="${x + 8 + h%20}" cy="${y + 30 - h%9}" r=".9" fill="#a8976f"/><circle cx="${x + 30 - h%11}" cy="${y + 9 + h%13}" r=".9" fill="#a8976f"/>`;
+  switch (type) {
+    case 'house': return insula(c, r).replace('fill="#dccca6"', 'fill="#dccca6"');
+    case 'colonnade': return s + `<rect x="${x+3}" y="${y+12}" width="34" height="16" fill="#efe7d6" stroke="#6b5a45" stroke-width=".8"/>${colonnade(x+5, y+14, 30, 12, 5)}<rect x="${x+8}" y="${y+18}" width="24" height="4" fill="#93b86a"/>`;
+    case 'fountain': return s + `<rect x="${x+11}" y="${y+11}" width="18" height="18" fill="#e7dcc4" stroke="#6b5a45" stroke-width=".8"/><rect x="${x+14}" y="${y+14}" width="12" height="12" fill="#7fb7c8"/><circle cx="${x+9}" cy="${y+32}" r="4" fill="#5d8a45"/>`;
+    case 'trees': return s + `<circle cx="${x+11}" cy="${y+13}" r="6" fill="#4f7a3a"/><circle cx="${x+28}" cy="${y+22}" r="7" fill="#4f7a3a"/><circle cx="${x+15}" cy="${y+31}" r="5" fill="#5d8a45"/><ellipse cx="${x+31}" cy="${y+8}" rx="2.4" ry="6" fill="#2f5a34"/>`;
+    case 'ruins': return s + `<rect x="${x+6}" y="${y+10}" width="16" height="4" rx="2" fill="#efe7d6" stroke="#6b5a45" stroke-width=".7" transform="rotate(-20 ${x+14} ${y+12})"/><rect x="${x+18}" y="${y+24}" width="15" height="4" rx="2" fill="#efe7d6" stroke="#6b5a45" stroke-width=".7" transform="rotate(25 ${x+25} ${y+26})"/><circle cx="${x+10}" cy="${y+30}" r="2.5" fill="#efe7d6" stroke="#6b5a45" stroke-width=".7"/>`;
+    case 'statue': return s + `<rect x="${x+14}" y="${y+20}" width="12" height="9" fill="#e7dcc4" stroke="#6b5a45" stroke-width=".8"/><circle cx="${x+20}" cy="${y+15}" r="3.5" fill="#cfc6b6" stroke="#6b5a45" stroke-width=".7"/>`;
+    default: return s;
+  }
+}
 function colonnade(x, y, w, h, step = 6) { let s = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="rgba(60,40,20,.45)" stroke-width="1"/>`;
   for (let t = 0; t <= w; t += step) s += `<circle cx="${x + t}" cy="${y}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/><circle cx="${x + t}" cy="${y + h}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/>`;
   for (let t = step; t < h; t += step) s += `<circle cx="${x}" cy="${y + t}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/><circle cx="${x + w}" cy="${y + t}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/>`;
@@ -898,37 +925,26 @@ function sockets(k, cap, n) {
 }
 function renderBoard() {
   const svg = document.getElementById('board'); let s = '';
-  s += `<defs><pattern id="basalt" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#575049"/>
-    <path d="M0 0 L9 1 L8 9 L0 8Z M10 0 L20 2 L19 10 L9 9Z M0 9 L8 10 L10 20 L0 19Z M9 10 L19 11 L20 20 L11 20Z" fill="#67605a" stroke="#433d38" stroke-width=".8"/></pattern>
-    <radialGradient id="lavaG"><stop offset="0" stop-color="#ffd25a"/><stop offset=".5" stop-color="#ff7a1a"/><stop offset="1" stop-color="#a3220b"/></radialGradient>
+  s += `<defs><radialGradient id="lavaG"><stop offset="0" stop-color="#ffd25a"/><stop offset=".5" stop-color="#ff7a1a"/><stop offset="1" stop-color="#a3220b"/></radialGradient>
     <linearGradient id="sea" x1="0" x2="1"><stop offset="0" stop-color="#3f7690"/><stop offset="1" stop-color="#6aa0b3"/></linearGradient></defs>`;
-  s += `<rect x="-70" y="-70" width="660" height="660" fill="#9db763"/>`;
-  s += `<path d="M-70 120 C-50 160 -44 220 -40 270 C-38 320 -48 370 -70 420Z" fill="#dcc995"/><path d="M-70 135 C-56 170 -52 220 -50 270 C-49 315 -56 360 -70 405Z" fill="url(#sea)"/>`;
-  s += `<path d="M-70 40 L-70 -70 L60 -70 C30 -60 10 -40 -6 -32 C-24 -22 -40 -10 -70 40Z" fill="#7d6d5f" stroke="#5b4d42"/><path d="M-70 -20 C-50 -36 -30 -48 -10 -58 L20 -70 L-70 -70Z" fill="#665649"/><path d="M-40 -58 C-44 -64 -38 -68 -42 -70" stroke="#b8aea6" stroke-width="5" fill="none" opacity=".8"/>`;
-  s += `<text x="-62" y="-50" font-family="Cinzel, serif" font-weight="700" font-size="9" fill="#f2e6cc" letter-spacing="1">VESUVIUS</text>`;
+  s += `<rect x="${VB.x}" y="${VB.y}" width="${VB.w}" height="${VB.h}" fill="#9db763"/>`;
+  s += `<path d="M-60 250 C-46 290 -44 340 -40 380 C-38 400 -44 410 -50 420 L-60 420Z" fill="#dcc995"/><path d="M-60 262 C-50 300 -50 345 -48 380 C-48 398 -52 408 -60 416Z" fill="url(#sea)"/>`;
+  // Vesuvius, where the volcano piece stands on the real board
+  s += `<path d="M-60 40 L-60 -60 L110 -60 C80 -50 60 -30 40 -24 C10 -14 -20 -2 -60 40Z" fill="#7d6d5f" stroke="#5b4d42"/><path d="M-60 -10 C-40 -28 -10 -42 20 -52 L50 -60 L-60 -60Z" fill="#665649"/><ellipse cx="-14" cy="-38" rx="14" ry="4" fill="#3a2a25"/><path d="M-12 -42 C-16 -50 -8 -54 -12 -60" stroke="#b8aea6" stroke-width="6" fill="none" opacity=".8"/>`;
+  s += `<text x="-52" y="-6" font-family="Cinzel, serif" font-weight="700" font-size="9" fill="#f2e6cc" letter-spacing="1">VESUVIUS</text>`;
   s += SCENERY;
   ROADS_OUT.forEach(d => s += `<path d="${d}" stroke="#a89466" stroke-width="16" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#d8c497" stroke-width="12" fill="none" stroke-linecap="round"/>`);
-  s += `<rect x="22" y="22" width="476" height="476" fill="#d8c79f"/>`;
-  for (let r = 1; r <= 11; r++) for (let c = 1; c <= 11; c++) {
+  for (let r = 1; r <= 7; r++) for (let c = 1; c <= 11; c++) {
+    if (!interior(c, r)) continue;
     const k = K(c, r), x = c*CS, y = r*CS, info = CELLINFO.get(k);
-    if (ROAD.has(k)) {
-      s += `<rect x="${x}" y="${y}" width="40" height="40" fill="url(#basalt)"/>`;
-      const hz = r === 3 || r === 7, vt = c === 2 || c === 6 || c === 10, h = hash(c, r) % 4;
-      if (hz && !vt) s += `<path d="M${x} ${y+2} h40 M${x} ${y+38} h40" stroke="#e3d6b8" stroke-width="3"/>`;
-      if (vt && !hz) s += `<path d="M${x+2} ${y} v40 M${x+38} ${y} v40" stroke="#e3d6b8" stroke-width="3"/>`;
-      if (h === 0 && hz !== vt) s += hz ? `<g fill="#e8ddc6" stroke="#8a7d68" stroke-width=".6"><ellipse cx="${x+20}" cy="${y+11}" rx="5" ry="3.4"/><ellipse cx="${x+20}" cy="${y+20}" rx="5" ry="3.4"/><ellipse cx="${x+20}" cy="${y+29}" rx="5" ry="3.4"/></g>` : `<g fill="#e8ddc6" stroke="#8a7d68" stroke-width=".6"><ellipse cx="${x+11}" cy="${y+20}" rx="3.4" ry="5"/><ellipse cx="${x+20}" cy="${y+20}" rx="3.4" ry="5"/><ellipse cx="${x+29}" cy="${y+20}" rx="3.4" ry="5"/></g>`;
-    } else if (VENT_AT.has(k)) {
+    if (VENT_AT.has(k)) {
       const v = VENT_AT.get(k);
-      s += `<rect x="${x}" y="${y}" width="40" height="40" fill="#3b3a52"/><path d="M${x+3} ${y+30} l8 -4 l5 5 l7 -6 l6 4 l7 -3 M${x+6} ${y+8} l6 5 l6 -3" stroke="#1d1c2c" stroke-width="1.6" fill="none"/><circle cx="${x+20}" cy="${y+20}" r="12" fill="rgba(0,0,0,.3)"/><g transform="translate(${x+20} ${y+20})">${glyph(v.id, .9, v.color)}</g>`;
+      s += `<rect x="${x}" y="${y}" width="40" height="40" fill="#e7dcc4"/><rect x="${x+2}" y="${y+2}" width="36" height="36" fill="#3b3a52" stroke="#efe7d6" stroke-width="1.5"/><path d="M${x+5} ${y+30} l7 -4 l5 5 l6 -6 l6 4 M${x+7} ${y+9} l5 4 l6 -3" stroke="#e0501c" stroke-width="1.4" fill="none" opacity=".8"/><g transform="translate(${x+20} ${y+20})">${glyph(v.id, .9, v.color)}</g>`;
     } else if (info && info.neutral) {
-      s += insula(c, r).replace(/fill="#dccca6"/, 'fill="#e6d6ae"') + `<rect x="${x+1.5}" y="${y+1.5}" width="37" height="37" fill="none" stroke="#c2a878" stroke-width="2"/>`;
+      s += insula(c, r) + `<rect x="${x+1.5}" y="${y+1.5}" width="37" height="37" fill="none" stroke="#c2a878" stroke-width="2"/>`;
     } else if (info) {
       s += partArt(info.b.icon, x, y, BCOL[info.b.color]);
-    } else {
-      const h = hash(c, r) % 3;
-      s += h === 0 ? `<rect x="${x}" y="${y}" width="40" height="40" fill="#e7dcc4"/><rect x="${x+14}" y="${y+14}" width="12" height="12" fill="#c9bda4" stroke="#6b5a45" stroke-width=".7"/><circle cx="${x+20}" cy="${y+20}" r="3" fill="#7fb7c8"/>`
-        : `<rect x="${x}" y="${y}" width="40" height="40" fill="#a9c27a"/><circle cx="${x+12}" cy="${y+13}" r="5.5" fill="#5d8a45"/><circle cx="${x+27}" cy="${y+25}" r="6.5" fill="#5d8a45"/><circle cx="${x+25}" cy="${y+10}" r="3.5" fill="#6f9a52"/><path d="M${x+4} ${y+34} h32" stroke="#d8c79f" stroke-width="3"/>`;
-    }
+    } else s += decorArt(DECOR[k] || 'open', c, r);
   }
   // part outlines and number badges
   BUILD.forEach(b => b.parts.forEach(pt => {
@@ -938,23 +954,20 @@ function renderBoard() {
       if (e(0,1)) s += `<path d="M${x} ${y+40} h40" stroke="${col.deep}" stroke-width="3"/>`;
       if (e(-1,0)) s += `<path d="M${x} ${y} v40" stroke="${col.deep}" stroke-width="3"/>`;
       if (e(1,0)) s += `<path d="M${x+40} ${y} v40" stroke="${col.deep}" stroke-width="3"/>`; });
-    const [c, r] = P(pt.keys[0]);
-    s += `<circle cx="${c*CS+8}" cy="${r*CS+8}" r="7" fill="${col.deep}" stroke="#f6efe0" stroke-width="1.2"/><text x="${c*CS+8}" y="${r*CS+8.5}" text-anchor="middle" dominant-baseline="middle" font-family="Cinzel, serif" font-weight="900" font-size="${b.n > 9 ? 7.5 : 9}" fill="#fff">${b.n}</text>`;
   }));
-  for (let i = 1; i <= 12; i++) s += `<path d="M${i*CS} 40 V480 M40 ${i*CS} H480" stroke="rgba(50,30,15,.2)" stroke-width=".8"/>`;
-  // sockets (spaces) are shown during phase 1 only; in phase 2 they have no meaning
-  if (S.phase === 'place') for (const [k, i] of CELLINFO) if (!S.lava.has(k)) s += sockets(k, i.cap, citsAt(k).length);
-  // wall, towers, gates
-  s += `<rect x="22" y="22" width="476" height="476" fill="none" stroke="#5b5046" stroke-width="18"/><rect x="22" y="22" width="476" height="476" fill="none" stroke="#e6dccb" stroke-width="13"/><rect x="22" y="22" width="476" height="476" fill="none" stroke="#b9ad99" stroke-width="1" stroke-dasharray="5 3"/>`;
-  [[1,0],[4,0],[8,0],[11,0],[0,2],[0,5],[0,10],[12,1],[12,5],[12,9],[12,11],[1,12],[3,12],[8,12],[12,12],[0,0],[12,0],[0,12]].forEach(([c, r]) => {
-    const x = Math.min(Math.max(c*CS+20, 22), 498), y = Math.min(Math.max(r*CS+20, 22), 498);
-    s += `<rect x="${x-10}" y="${y-8}" width="22" height="22" fill="rgba(0,0,0,.25)"/><rect x="${x-11}" y="${y-11}" width="22" height="22" fill="#efe7d8" stroke="#5b5046" stroke-width="1.2"/><rect x="${x-7}" y="${y-7}" width="14" height="14" fill="#b8603b" stroke="#4a2a18" stroke-width=".8"/><path d="M${x-7} ${y} h14" stroke="#4a2a18" stroke-width=".8"/>`; });
-  GATES.forEach(g => { const x = g.c*CS, y = g.r*CS, blocked = !passable(g.inner), cx = x + 20, cy = y + 20;
-    s += `<g transform="rotate(${g.rot} ${cx} ${cy})"><rect x="${x+2}" y="${y+12}" width="12" height="20" fill="#efe7d8" stroke="#5b5046" stroke-width="1.2"/><rect x="${x+26}" y="${y+12}" width="12" height="20" fill="#efe7d8" stroke="#5b5046" stroke-width="1.2"/>
-      <rect x="${x+4}" y="${y+14}" width="8" height="8" fill="#b8603b"/><rect x="${x+28}" y="${y+14}" width="8" height="8" fill="#b8603b"/><rect x="${x+14}" y="${y+8}" width="12" height="32" fill="${blocked ? '#8a1a08' : '#cbb88f'}" stroke="#5b5046" stroke-width="1"/><path d="M${x+14} ${y+20} h12" stroke="#5b5046" stroke-width="1"/></g>`;
-    const tx = g.c === 0 ? -10 : g.c === 12 ? 530 : cx, ty = g.r === 0 ? -8 : g.r === 12 ? 535 : cy, tr = g.c === 0 ? -90 : g.c === 12 ? 90 : 0;
+  // square grid, as printed on the board
+  for (let r = 1; r <= 7; r++) for (let c = 1; c <= 11; c++) if (interior(c, r)) s += `<rect x="${c*CS}" y="${r*CS}" width="40" height="40" fill="none" stroke="rgba(50,30,15,.28)" stroke-width=".8"/>`;
+  if (S.phase === 'place') for (const [k, i] of CELLINFO) if (!S.lava.has(k) && i.cap) s += sockets(k, i.cap, citsAt(k).length);
+  s += WALL;
+  BUILD.forEach(b => b.parts.forEach(pt => { const col = BCOL[b.color], [c, r] = P(pt.keys[0]);
+    s += `<circle cx="${c*CS+10}" cy="${r*CS+10}" r="7" fill="${col.deep}" stroke="#f6efe0" stroke-width="1.2"/><text x="${c*CS+10}" y="${r*CS+10.5}" text-anchor="middle" dominant-baseline="middle" font-family="Cinzel, serif" font-weight="900" font-size="${b.n > 9 ? 7.5 : 9}" fill="#fff">${b.n}</text>`; }));
+  // gates: gatehouse on the wall between the gate square and the city square inside it
+  GATES.forEach(g => { const [ix, iy] = P(g.inner), ex = (g.c*CS + ix*CS)/2 + 20, ey = (g.r*CS + iy*CS)/2 + 20, blocked = !passable(g.inner);
+    s += `<g transform="rotate(${g.rot} ${ex} ${ey})"><rect x="${ex-17}" y="${ey-9}" width="34" height="18" fill="rgba(0,0,0,.25)" transform="translate(2 2)"/><rect x="${ex-17}" y="${ey-9}" width="34" height="18" fill="#f1ebdf" stroke="#5b5046" stroke-width="1.2"/>
+      <path d="M${ex-17} ${ey-9} l17 -7 l17 7Z" fill="#b8603b" stroke="#4a2a18" stroke-width=".9"/><path d="M${ex-6} ${ey+9} v-8 a6 6 0 0 1 12 0 v8Z" fill="${blocked ? '#8a1a08' : '#2a1d14'}"/></g>`;
+    const [dx, dy] = g.dir, tx = ex - dx*34 + (g.id === 6 ? -34 : g.id === 5 ? 34 : 0), ty = ey - dy*30, tr = dx ? -90 * dx : 0;
     s += `<text x="${tx}" y="${ty}" transform="rotate(${tr} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle" font-family="Cinzel, serif" font-weight="700" font-size="9" fill="#2a1b12" stroke="#f2e6cc" stroke-width="2.6" paint-order="stroke" letter-spacing=".6">${g.name.toUpperCase()}</text>`; });
-  s += `<g transform="translate(565 -45)"><circle r="15" fill="rgba(242,230,204,.85)" stroke="#5b4d42"/><path d="M0 -12 L4 2 L0 0 L-4 2Z" fill="#9b2d20"/><path d="M0 12 L4 -2 L0 0 L-4 -2Z" fill="#5b4d42"/><text y="-17" text-anchor="middle" font-family="Cinzel, serif" font-size="8" font-weight="700" fill="#2a1b12">N</text></g>`;
+  s += `<g transform="translate(560 -35)"><circle r="15" fill="rgba(242,230,204,.85)" stroke="#5b4d42"/><path d="M0 -12 L4 2 L0 0 L-4 2Z" fill="#9b2d20"/><path d="M0 12 L4 -2 L0 0 L-4 -2Z" fill="#5b4d42"/><text y="-17" text-anchor="middle" font-family="Cinzel, serif" font-size="8" font-weight="700" fill="#2a1b12">N</text></g>`;
   // lava
   for (const [k, sym] of S.lava) { const [c, r] = P(k), x = c*CS, y = r*CS, h = hash(c, r);
     s += `<rect x="${x}" y="${y}" width="40" height="40" fill="url(#lavaG)"/><path d="M${x+3} ${y+8+h%9} l9 3 l5 -4 l8 6 M${x+22} ${y+30-h%7} l7 -3 l8 4" stroke="#7a1606" stroke-width="1.6" fill="none" opacity=".7"/>
@@ -975,7 +988,7 @@ function renderBoard() {
     if (pk && pk.kind === 'move' && pk.selCid == null && list.some(ct => pk.movables[ct.id])) s += `<rect x="${x-19}" y="${y-20}" width="38" height="38" rx="4" fill="none" stroke="#fff" stroke-width="1.8" stroke-dasharray="3 3"/>`;
   }
   for (const k of highlightCells()) { const [c, r] = P(k); s += `<rect class="hl" x="${c*CS+2}" y="${r*CS+2}" width="36" height="36" rx="4"/>`; }
-  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) s += `<rect class="hit" data-k="${K(c, r)}" x="${c*CS}" y="${r*CS}" width="40" height="40"/>`;
+  for (let r = 0; r < NR; r++) for (let c = 0; c < N; c++) if (interior(c, r) || GATE_BY_KEY.has(K(c, r))) s += `<rect class="hit" data-k="${K(c, r)}" x="${c*CS}" y="${r*CS}" width="40" height="40"/>`;
   svg.innerHTML = s;
 }
 function highlightCells() {
