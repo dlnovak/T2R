@@ -537,12 +537,16 @@ function peerHost(code){
     peer.on('error',e=>{if(!opened)reject(e)});
     peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
     peer.on('connection',conn=>{
-      const c={conn,open:false,presence:{}};conns.set(conn.peer,c);
-      conn.on('open',()=>{c.open=true;fire()});
-      conn.on('data',m=>{if(m&&m.t==='pres'&&m.presence&&typeof m.presence==='object'){c.presence=m.presence;fire()}});
+      const old=conns.get(conn.peer);const c={conn,open:false,presence:old?old.presence:{},seen:Date.now()};conns.set(conn.peer,c);
+      if(old&&old.conn!==conn){try{old.conn.close()}catch(e){}}
+      conn.on('open',()=>{c.open=true;c.seen=Date.now();fire()});
+      conn.on('data',m=>{c.seen=Date.now();if(!m)return;
+        if(m.t==='ping'){try{conn.send({t:'pong'})}catch(e){}return}
+        if(m.t==='pres'&&m.presence&&typeof m.presence==='object'){c.presence=m.presence;fire()}});
       const drop=()=>{if(conns.get(conn.peer)===c){conns.delete(conn.peer);fire()}};
       conn.on('close',drop);conn.on('error',drop);
     });
+    setInterval(()=>{const now=Date.now();conns.forEach((c,id)=>{if(c.open&&now-c.seen>15000){conns.delete(id);try{c.conn.close()}catch(e){}fire()}})},5000);
     const api={
       emit:async(topic,data)=>{
         const msg={t:'emit',topic,data};
@@ -560,31 +564,49 @@ function peerHost(code){
 function peerJoin(code,onDown){
   return new Promise((resolve,reject)=>{
     const peer=new Peer(peerOpts());const hostId=PEER_PREFIX+code;
-    const topicH={};let myPres={tok:TOK},conn=null,ready=false,dead=false,retryT=null,tries=0,openT=null;
-    const deliver=m=>{if(m&&m.t==='emit')(topicH[m.topic]||[]).forEach(h=>{try{h({topic:m.topic,data:m.data,peer:hostId,by:null,isMe:false,sameTab:false,kind:'viewer',guest:false})}catch(e){}})};
+    const topicH={};let myPres={tok:TOK},conn=null,ready=false,dead=false,tries=0,openT=null,connecting=false,connStart=0,lastMsg=Date.now(),down=false,wd=null;
+    const setDown=v=>{if(down===v)return;down=v;onDown&&onDown(v)};
+    const deliver=m=>{lastMsg=Date.now();if(m&&m.t==='emit')(topicH[m.topic]||[]).forEach(h=>{try{h({topic:m.topic,data:m.data,peer:hostId,by:null,isMe:false,sameTab:false,kind:'viewer',guest:false})}catch(e){}})};
     const connect=()=>{
       if(dead)return;
+      if(connecting&&Date.now()-connStart<9000)return;
+      connecting=true;connStart=Date.now();
+      try{if(conn)conn.close()}catch(e){}
+      if(peer.disconnected&&!peer.destroyed){try{peer.reconnect()}catch(e){}}
       const c=conn=peer.connect(hostId,{reliable:true});tries++;
       clearTimeout(openT);
-      if(!ready)openT=setTimeout(()=>{if(ready||dead||c.open)return;try{c.close()}catch(e){}
+      if(!ready)openT=setTimeout(()=>{if(ready||dead||c.open)return;connecting=false;
         if(tries<3){C.slow=true;renderSetup();connect()}else{dead=true;try{peer.destroy()}catch(e){}reject({type:'ice-timeout'})}},14000);
-      c.on('open',()=>{clearTimeout(openT);if(c!==conn)return;c.send({t:'pres',presence:myPres});if(!ready){ready=true;C.slow=false;resolve(api)}else onDown&&onDown(false)});
-      conn.on('data',deliver);
-      conn.on('close',()=>{if(dead)return;onDown&&onDown(true);clearTimeout(retryT);retryT=setTimeout(connect,2500)});
+      c.on('open',()=>{if(c!==conn)return;clearTimeout(openT);connecting=false;lastMsg=Date.now();c.send({t:'pres',presence:myPres});
+        if(!ready){ready=true;C.slow=false;resolve(api)}else setDown(false)});
+      c.on('data',m=>{if(c===conn)deliver(m)});
+      const lost=()=>{if(dead||c!==conn||!ready)return;connecting=false;setDown(true);setTimeout(connect,1500)};
+      c.on('close',lost);c.on('error',lost);
+      c.on('iceStateChanged',st=>{if(st==='failed'||st==='closed')lost()});
     };
+    // watchdog: ping the host; if nothing comes back for a while, rebuild the link
+    wd=setInterval(()=>{
+      if(dead||!ready)return;
+      const open=conn&&conn.open;
+      if(open){try{conn.send({t:'ping'})}catch(e){}}
+      if(!open||Date.now()-lastMsg>10000){setDown(true);connect()}
+    },3000);
     peer.on('open',connect);
     peer.on('error',e=>{
-      if(!ready){dead=true;try{peer.destroy()}catch(x){}reject(e);return}
-      if(e&&e.type==='peer-unavailable'){onDown&&onDown(true);clearTimeout(retryT);retryT=setTimeout(connect,3000)}
+      if(!ready){dead=true;clearInterval(wd);try{peer.destroy()}catch(x){}reject(e);return}
+      connecting=false;setDown(true);
     });
     peer.on('disconnected',()=>{if(!dead)try{peer.reconnect()}catch(e){}});
     const api={
       emit:async()=>{},
       on:(t,h)=>{(topicH[t]=topicH[t]||[]).push(h);return()=>{}},
-      presence:async patch=>{myPres=Object.assign({},myPres,patch,{tok:TOK});if(conn&&conn.open)conn.send({t:'pres',presence:myPres});else throw new Error('offline')},
+      presence:async patch=>{myPres=Object.assign({},myPres,patch,{tok:TOK});
+        if(conn&&conn.open){try{conn.send({t:'pres',presence:myPres});return}catch(e){}}
+        setDown(true);connect();throw new Error('offline')},
       peers:()=>[{peer:peer.id,by:TOK,isMe:true,sameTab:true,kind:'viewer',guest:false,presence:myPres,updatedAt:Date.now()}],
       onPeers:()=>()=>{},
-      leave:async()=>{dead=true;clearTimeout(retryT);try{peer.destroy()}catch(e){}},
+      _drop:()=>{try{conn.peerConnection.close()}catch(e){}},
+      leave:async()=>{dead=true;clearInterval(wd);clearTimeout(openT);try{peer.destroy()}catch(e){}},
     };
   });
 }
@@ -721,8 +743,8 @@ function seatedHere(){return C.pub&&C.seat!=null&&C.pub.seats[C.seat]&&C.pub.sea
 function send(act){
   if(MODE!=='client'||C.wait)return;
   C.seq=Math.max(Date.now(),C.seq+1);C.wait=true;
-  NR.presence({seat:C.seat,act:Object.assign({},act,{seq:C.seq,seat:C.seat})}).catch(()=>{C.wait=false;toast('Connection problem — try again.');render()});
-  clearTimeout(C.waitT);C.waitT=setTimeout(()=>{if(C.wait){C.wait=false;render()}},9000);
+  NR.presence({seat:C.seat,act:Object.assign({},act,{seq:C.seq,seat:C.seat})}).catch(()=>{toast('Connection dropped — reconnecting. Your move will go through once it’s back.');render()});
+  clearTimeout(C.waitT);C.waitT=setTimeout(function chk(){if(!C.wait)return;if(C.down){C.waitT=setTimeout(chk,3000);return}C.wait=false;render()},12000);
   render();
 }
 function clientSync(){
@@ -1208,7 +1230,7 @@ function addChat(pi,text){
 function sendChat(text){
   text=String(text||'').replace(/\s+/g,' ').trim().slice(0,140);if(!text||!G)return false;
   if(MODE==='host'){addChat(H.local>=0?H.local:-1,text);return true}
-  if(MODE==='client'&&C.seat!=null&&NR){C.chatSeq=Math.max(Date.now(),C.chatSeq+1);NR.presence({chat:{seq:C.chatSeq,text}}).catch(()=>toast('Message not sent — connection problem.'));return true}
+  if(MODE==='client'&&C.seat!=null&&NR){C.chatSeq=Math.max(Date.now(),C.chatSeq+1);NR.presence({chat:{seq:C.chatSeq,text}}).catch(()=>toast('Reconnecting — your message will send once the connection is back.'));return true}
   return false;
 }
 $('chatForm').addEventListener('submit',e=>{e.preventDefault();const i=$('chatIn');if(sendChat(i.value))i.value=''});
