@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Chinese Checkers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#13201b; --bg2:#1b2d26; --ink:#f3ead8; --muted:#a9b6ad; --line:rgba(243,234,216,.14);
+    --accent:#f0c36a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:radial-gradient(120% 90% at 50% 20%,#20362e 0%,var(--bg) 60%,#0d1612 100%);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  body{display:flex;flex-direction:column;min-height:100dvh}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 6px;gap:12px}
+  h1{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:22px;margin:0;letter-spacing:.2px}
+  .status{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);min-height:22px;white-space:nowrap}
+  .status .dot{width:14px;height:14px;border-radius:50%;box-shadow:inset -2px -3px 4px rgba(0,0,0,.35),0 0 0 2px rgba(255,255,255,.12)}
+  .status b{color:var(--ink);font-weight:600}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:4px 8px;min-height:0}
+  svg#board{width:100%;max-width:640px;max-height:calc(100dvh - 150px);touch-action:manipulation;user-select:none;display:block}
+  .bar{display:flex;gap:10px;justify-content:center;padding:8px 16px 18px}
+  button{font:inherit;font-weight:500;font-size:15px;color:var(--ink);background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px 16px;cursor:pointer}
+  button:active{transform:translateY(1px)}
+  button:disabled{opacity:.4;cursor:default}
+  button.primary{background:var(--accent);color:#2a1d07;border-color:transparent;font-weight:600}
+  .overlay{position:fixed;inset:0;background:rgba(6,12,10,.66);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10;backdrop-filter:blur(3px)}
+  .overlay[hidden]{display:none}
+  .card{background:#1a2b24;border:1px solid var(--line);border-radius:18px;padding:20px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .card h2{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:22px;margin:0 0 4px}
+  .card p{color:var(--muted);font-size:14px;line-height:1.45;margin:6px 0 14px}
+  .label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:14px 0 8px}
+  .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .seg button{padding:9px 0}
+  .seg button.on{background:var(--ink);color:#16231e;border-color:transparent;font-weight:600}
+  .seats{display:flex;flex-direction:column;gap:6px}
+  .seat{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 10px;border:1px solid var(--line);border-radius:12px}
+  .seat .dot{width:18px;height:18px;border-radius:50%;box-shadow:inset -2px -3px 4px rgba(0,0,0,.35)}
+  .seat span{flex:1;font-weight:500}
+  .seat button{padding:6px 12px;font-size:13px;border-radius:9px;min-width:84px}
+  .seat button.human{background:var(--ink);color:#16231e;border-color:transparent}
+  .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+  details{margin-top:12px;font-size:13.5px;color:var(--muted);line-height:1.5}
+  summary{cursor:pointer;color:var(--ink);font-weight:500}
+  details ul{padding-left:18px;margin:8px 0 0}
+  .ranks{list-style:none;padding:0;margin:8px 0 0}
+  .ranks li{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .ranks .dot{width:16px;height:16px;border-radius:50%}
+  .toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#0b1310;border:1px solid var(--line);padding:8px 14px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>Chinese Checkers</h1>
+  <div class="status" id="status"></div>
+</header>
+<main><svg id="board" viewBox="-8.3 -8.6 16.6 17.2" aria-label="Chinese checkers board"></svg></main>
+<div class="bar">
+  <button id="undoBtn">Undo</button>
+  <button id="newBtn" class="primary">New game</button>
+</div>
+
+<div class="overlay" id="setup" hidden>
+  <div class="card">
+    <h2>New game</h2>
+    <p>Race all ten of your marbles across the board into the opposite point.</p>
+    <div class="label">Players</div>
+    <div class="seg" id="countSeg"></div>
+    <div class="label">Seats</div>
+    <div class="seats" id="seats"></div>
+    <details>
+      <summary>How to play</summary>
+      <ul>
+        <li>On your turn, move one marble: step into an adjacent empty hole, <i>or</i> hop over any single adjacent marble (anyone's) into the empty hole right behind it.</li>
+        <li>Hops can be chained in one turn as long as each lands in an empty hole. Tap a marble to see every place it can reach.</li>
+        <li>First to fill the opposite point wins. If an opponent squats in your point, you still win once it's full and holds at least one of yours.</li>
+      </ul>
+    </details>
+    <div class="actions">
+      <button id="cancelSetup">Cancel</button>
+      <button id="startBtn" class="primary">Start</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <div class="card">
+    <h2 id="overTitle"></h2>
+    <ul class="ranks" id="ranks"></ul>
+    <div class="actions">
+      <button id="viewBoard">View board</button>
+      <button id="againBtn" class="primary">Play again</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+const SQ3 = Math.sqrt(3);
+const NS = 'http://www.w3.org/2000/svg';
+const DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]];
+
+// The six points, clockwise from the top.
+const REG = {
+  T:  {apex:[4,-8],  opp:'B',  color:'#e5484d', name:'Red'},
+  UR: {apex:[8,-4],  opp:'LL', color:'#f2a93b', name:'Amber'},
+  LR: {apex:[4,4],   opp:'UL', color:'#3fb27f', name:'Green'},
+  B:  {apex:[-4,8],  opp:'T',  color:'#4c7cf0', name:'Blue'},
+  LL: {apex:[-8,4],  opp:'UR', color:'#a06ad8', name:'Purple'},
+  UL: {apex:[-4,-4], opp:'LR', color:'#f2f0ea', name:'White'},
+};
+const SEATS = {2:['T','B'], 3:['T','LR','LL'], 4:['UR','LR','LL','UL'], 6:['T','UR','LR','B','LL','UL']};
+
+function regionOf(q,r,s){
+  if (r < -4) return 'T'; if (q > 4) return 'UR'; if (s < -4) return 'LR';
+  if (r > 4) return 'B';  if (q < -4) return 'LL'; if (s > 4) return 'UL';
+  return 'C';
+}
+
+// Build the 121-hole star: union of two big triangles.
+const cells = [], cellMap = new Map();
+for (let q=-8;q<=8;q++) for (let r=-8;r<=8;r++){
+  const s=-q-r;
+  const t1 = q>=-4 && r>=-4 && s>=-4, t2 = q<=4 && r<=4 && s<=4;
+  if (!(t1||t2)) continue;
+  const c = {q,r,s,key:q+','+r,x:q+r/2,y:r*SQ3/2,region:regionOf(q,r,s)};
+  cells.push(c); cellMap.set(c.key,c);
+}
+const K = (q,r) => q+','+r;
+const hexDist = (a,b) => (Math.abs(a.q-b.q)+Math.abs(a.r-b.r)+Math.abs(a.s-b.s))/2;
+const regionCells = reg => cells.filter(c=>c.region===reg);
+
+// ---------- State ----------
+let G = null, gen = 0, selected = null, hints = [];
+let config = {count:2, types:{T:'human',UR:'cpu',LR:'cpu',B:'cpu',LL:'cpu',UL:'cpu'}};
+try { const s = JSON.parse(localStorage.getItem('cc-config')); if (s && SEATS[s.count]) config = s; } catch(e){}
+
+function newGame(){
+  gen++;
+  const regs = SEATS[config.count];
+  const players = regs.map(reg => ({region:reg, target:REG[reg].opp, color:REG[reg].color, name:REG[reg].name,
+    type: config.types[reg] || 'cpu', rank:null, lastMove:null}));
+  const board = {};
+  players.forEach((p,i)=> regionCells(p.region).forEach(c=> board[c.key]=i));
+  G = {players, board, turn:0, history:[], last:null, over:false, busy:false, nextRank:1};
+  selected=null; hints=[];
+  hide('over');
+  render(); afterTurnStart();
+}
+
+function snapshot(){
+  return {board:{...G.board}, turn:G.turn, last:G.last, nextRank:G.nextRank, over:G.over,
+    players:G.players.map(p=>({rank:p.rank,lastMove:p.lastMove}))};
+}
+function restore(s){
+  G.board={...s.board}; G.turn=s.turn; G.last=s.last; G.nextRank=s.nextRank; G.over=s.over;
+  s.players.forEach((p,i)=>{G.players[i].rank=p.rank; G.players[i].lastMove=p.lastMove;});
+}
+
+// ---------- Rules ----------
+function movesFrom(key){
+  const c = cellMap.get(key), occ = k => k!==key && G.board[k]!==undefined;
+  const out = [];
+  for (const [dq,dr] of DIRS){
+    const nk = K(c.q+dq,c.r+dr);
+    if (cellMap.has(nk) && !occ(nk)) out.push({from:key,to:nk,path:[key,nk]});
+  }
+  // chained hops (BFS)
+  const seen = new Set([key]), queue = [{k:key,path:[key]}];
+  while (queue.length){
+    const {k,path} = queue.shift(), cc = cellMap.get(k);
+    for (const [dq,dr] of DIRS){
+      const mid = K(cc.q+dq,cc.r+dr), land = K(cc.q+2*dq,cc.r+2*dr);
+      if (!cellMap.has(land) || seen.has(land) || !occ(mid) || occ(land)) continue;
+      seen.add(land);
+      const np = [...path,land];
+      out.push({from:key,to:land,path:np});
+      queue.push({k:land,path:np});
+    }
+  }
+  return out;
+}
+function allMoves(pi){
+  const res=[];
+  for (const k in G.board) if (G.board[k]===pi) res.push(...movesFrom(k));
+  return res;
+}
+function hasWon(pi){
+  const tgt = regionCells(G.players[pi].target);
+  let mine=0;
+  for (const c of tgt){ const o=G.board[c.key]; if (o===undefined) return false; if (o===pi) mine++; }
+  return mine>0;
+}
+
+// ---------- Turn flow ----------
+function applyMove(m){
+  G.history.push(snapshot());
+  const pi = G.turn;
+  delete G.board[m.from]; G.board[m.to]=pi;
+  G.last = {pi, path:m.path};
+  G.players[pi].lastMove = {from:m.from,to:m.to};
+  if (G.players[pi].rank===null && hasWon(pi)){
+    G.players[pi].rank = G.nextRank++;
+    if (G.players[pi].rank===1 && G.players.length>2) toast(`${G.players[pi].name} finishes first!`);
+  }
+  const left = G.players.filter(p=>p.rank===null);
+  if (G.players.length===2 ? left.length<2 : left.length<=1){
+    left.forEach(p=>p.rank=G.nextRank++);
+    G.over = true; render(); setTimeout(showGameOver, 500); return;
+  }
+  advance();
+}
+function advance(){
+  let n=G.turn, guard=0;
+  do { n=(n+1)%G.players.length; } while (G.players[n].rank!==null && ++guard<10);
+  G.turn=n; selected=null; hints=[];
+  render(); afterTurnStart();
+}
+function afterTurnStart(){
+  if (G.over) return;
+  const p = G.players[G.turn];
+  if (!allMoves(G.turn).length){ toast(`${p.name} has no moves — skipped`); setTimeout(advance,700); return; }
+  if (p.type==='cpu'){
+    const my = gen;
+    setTimeout(()=>{ if (my!==gen || G.over) return; const m=cpuChoose(G.turn); if (m) playMove(m); }, 420);
+  }
+}
+function playMove(m){
+  G.busy=true; selected=null; hints=[];
+  const my = gen, pi = G.turn;
+  animate(pi, m.path, ()=>{ if (my!==gen) return; G.busy=false; applyMove(m); });
+}
+
+// ---------- CPU ----------
+function cpuChoose(pi){
+  const P=G.players[pi];
+  const A=cellMap.get(K(...REG[P.target].apex)), H=cellMap.get(K(...REG[P.region].apex));
+  const dx=A.x-H.x, dy=A.y-H.y, L=Math.hypot(dx,dy);
+  const f = c => { const d=hexDist(c,A); return d + 0.08*d*d; };
+  const perp = c => Math.abs((c.x-H.x)*dy-(c.y-H.y)*dx)/L;
+  let best=null, bs=-Infinity;
+  for (const m of allMoves(pi)){
+    const a=cellMap.get(m.from), b=cellMap.get(m.to);
+    let s = f(a)-f(b) + 0.5*(perp(a)-perp(b));
+    if (a.region!==P.target && b.region===P.target) s+=2;
+    if (a.region===P.target && b.region!==P.target) s-=40;
+    if (P.lastMove && P.lastMove.to===m.from && P.lastMove.from===m.to) s-=12;
+    if (b.region!==P.target && b.region!=='C' && b.region!==P.region) s-=1.5; // avoid parking in others' homes
+    s += Math.random()*0.4;
+    if (s>bs){bs=s;best=m;}
+  }
+  return best;
+}
+
+// ---------- Rendering ----------
+const svg = document.getElementById('board');
+const el = (tag, attrs={}, parent) => { const e=document.createElementNS(NS,tag); for (const a in attrs) e.setAttribute(a,attrs[a]); if (parent) parent.appendChild(e); return e; };
+let gPieces, gHints, gLast, gAnim;
+
+function shade(hex, amt){ // amt -1..1
+  const n=parseInt(hex.slice(1),16); let r=n>>16,g=n>>8&255,b=n&255;
+  const t = amt<0?0:255, p=Math.abs(amt);
+  r=Math.round(r+(t-r)*p); g=Math.round(g+(t-g)*p); b=Math.round(b+(t-b)*p);
+  return `rgb(${r},${g},${b})`;
+}
+
+function buildBoard(){
+  svg.innerHTML='';
+  const defs = el('defs',{},svg);
+  const wood = el('linearGradient',{id:'wood',x1:0,y1:0,x2:1,y2:1},defs);
+  el('stop',{offset:'0%','stop-color':'#d9a866'},wood);
+  el('stop',{offset:'55%','stop-color':'#c08a4a'},wood);
+  el('stop',{offset:'100%','stop-color':'#a06d35'},wood);
+  for (const reg in REG){
+    const g = el('radialGradient',{id:'m-'+reg,cx:'35%',cy:'30%',r:'75%'},defs);
+    el('stop',{offset:'0%','stop-color':shade(REG[reg].color,.55)},g);
+    el('stop',{offset:'45%','stop-color':REG[reg].color},g);
+    el('stop',{offset:'100%','stop-color':shade(REG[reg].color,-.5)},g);
+  }
+  const sh = el('filter',{id:'sh',x:'-50%',y:'-50%',width:'200%',height:'200%'},defs);
+  el('feDropShadow',{dx:.05,dy:.09,stdDeviation:.06,'flood-color':'#000','flood-opacity':.5},sh);
+  const bsh = el('filter',{id:'bsh',x:'-20%',y:'-20%',width:'140%',height:'140%'},defs);
+  el('feDropShadow',{dx:0,dy:.25,stdDeviation:.3,'flood-color':'#000','flood-opacity':.55},bsh);
+
+  // star = two triangles through the six apexes, pushed outward
+  const tip = k => { const c=cellMap.get(K(...REG[k].apex)); return [c.x*1.13, c.y*1.13]; };
+  const tri = ks => ks.map(tip).map(p=>p.join(',')).join(' ');
+  const star = el('g',{filter:'url(#bsh)'},svg);
+  for (const ks of [['UR','B','UL'],['T','LR','LL']])
+    el('polygon',{points:tri(ks),fill:'url(#wood)',stroke:'url(#wood)','stroke-width':1.1,'stroke-linejoin':'round'},star);
+
+  const holes = el('g',{},svg);
+  for (const c of cells){
+    const tint = c.region==='C' ? null : REG[c.region].color;
+    if (tint) el('circle',{cx:c.x,cy:c.y,r:.43,fill:tint,opacity:.32},holes);
+    el('circle',{cx:c.x,cy:c.y,r:.25,fill:'#5b3a19'},holes);
+    el('circle',{cx:c.x,cy:c.y+.03,r:.2,fill:'#3d260f'},holes);
+  }
+  gLast = el('g',{},svg);
+  gPieces = el('g',{},svg);
+  gHints = el('g',{},svg);
+  gAnim = el('g',{},svg);
+}
+
+function drawMarble(parent, reg, x, y, extra={}){
+  const g = el('g',{transform:`translate(${x},${y})`,...extra},parent);
+  el('circle',{r:.4,fill:`url(#m-${reg})`,filter:'url(#sh)'},g);
+  el('ellipse',{cx:-.12,cy:-.15,rx:.12,ry:.08,fill:'#fff',opacity:.55},g);
+  return g;
+}
+
+function render(){
+  if (!gPieces) buildBoard();
+  gPieces.innerHTML=''; gHints.innerHTML=''; gLast.innerHTML='';
+  if (G.last){
+    const pts = G.last.path.map(k=>{const c=cellMap.get(k);return c.x+','+c.y;}).join(' ');
+    el('polyline',{points:pts,fill:'none',stroke:G.players[G.last.pi].color,'stroke-width':.12,'stroke-linecap':'round','stroke-linejoin':'round',opacity:.55,'stroke-dasharray':'.05 .2'},gLast);
+    const f = cellMap.get(G.last.path[0]);
+    el('circle',{cx:f.x,cy:f.y,r:.3,fill:'none',stroke:G.players[G.last.pi].color,'stroke-width':.07,opacity:.7},gLast);
+  }
+  for (const k in G.board){
+    const c=cellMap.get(k), p=G.players[G.board[k]];
+    drawMarble(gPieces, p.region, c.x, c.y);
+    if (k===selected) el('circle',{cx:c.x,cy:c.y,r:.5,fill:'none',stroke:'#fff','stroke-width':.08},gPieces);
+  }
+  for (const m of hints){
+    const c=cellMap.get(m.to);
+    el('circle',{cx:c.x,cy:c.y,r:.3,fill:G.players[G.turn].color,opacity:.35},gHints);
+    el('circle',{cx:c.x,cy:c.y,r:.14,fill:'#fff',opacity:.9},gHints);
+  }
+  renderStatus();
+  document.getElementById('undoBtn').disabled = !canUndo();
+}
+
+function renderStatus(){
+  const s = document.getElementById('status');
+  if (G.over){ const w=G.players.find(p=>p.rank===1); s.innerHTML=`<span class="dot" style="background:${w.color}"></span><b>${w.name}</b> wins`; return; }
+  const p = G.players[G.turn];
+  const who = p.type==='cpu' ? 'CPU is thinking…' : (selected ? 'Tap a dot to move' : 'Your turn');
+  s.innerHTML = `<span class="dot" style="background:${p.color}"></span><b>${p.name}</b>&nbsp;· ${who}`;
+}
+
+function animate(pi, path, done){
+  const reg = G.players[pi].region;
+  const pts = path.map(k=>cellMap.get(k));
+  // hide original
+  delete G.board[path[0]]; render(); G.board[path[0]]=pi;
+  delete G.board[path[0]];
+  const m = drawMarble(gAnim, reg, pts[0].x, pts[0].y);
+  const seg = path.length>2 ? 190 : 160;
+  let i=0, t0=null;
+  function frame(ts){
+    if (t0===null) t0=ts;
+    const t=Math.min(1,(ts-t0)/seg), e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+    const a=pts[i], b=pts[i+1];
+    const lift = path.length>2 || hexDist(a,b)>1 ? Math.sin(Math.PI*e)*.35 : 0;
+    m.setAttribute('transform',`translate(${a.x+(b.x-a.x)*e},${a.y+(b.y-a.y)*e-lift}) scale(${1+lift*.35})`);
+    if (t<1) return requestAnimationFrame(frame);
+    i++; t0=null;
+    if (i<pts.length-1) return requestAnimationFrame(frame);
+    gAnim.innerHTML=''; G.board[path[0]]=pi; done();
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------- Input ----------
+svg.addEventListener('pointerdown', ev => {
+  if (!G || G.over || G.busy || G.players[G.turn].type!=='human') return;
+  const pt = svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY;
+  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  let best=null, bd=.6;
+  for (const c of cells){ const d=Math.hypot(c.x-p.x,c.y-p.y); if (d<bd){bd=d;best=c;} }
+  if (!best){ selected=null; hints=[]; render(); return; }
+  const hit = hints.find(m=>m.to===best.key);
+  if (hit){ playMove(hit); return; }
+  if (G.board[best.key]===G.turn){
+    if (selected===best.key){ selected=null; hints=[]; }
+    else { selected=best.key; hints=movesFrom(best.key); if(!hints.length) toast('That marble is boxed in'); }
+  } else { selected=null; hints=[]; }
+  render();
+});
+
+function canUndo(){
+  if (!G || G.busy) return false;
+  return G.history.some(s=>G.players[s.turn].type==='human');
+}
+document.getElementById('undoBtn').onclick = () => {
+  if (!canUndo()) return;
+  gen++; gAnim.innerHTML='';
+  let s;
+  do { s=G.history.pop(); } while (G.players[s.turn].type!=='human');
+  restore(s); selected=null; hints=[];
+  hide('over'); render();
+};
+
+// ---------- Setup UI ----------
+const $ = id => document.getElementById(id);
+function show(id){ $(id).hidden=false; } function hide(id){ $(id).hidden=true; }
+function renderSetup(){
+  const seg=$('countSeg'); seg.innerHTML='';
+  for (const n of [2,3,4,6]){
+    const b=document.createElement('button'); b.textContent=n; if (n===config.count) b.className='on';
+    b.onclick=()=>{config.count=n; renderSetup();}; seg.appendChild(b);
+  }
+  const seats=$('seats'); seats.innerHTML='';
+  for (const reg of SEATS[config.count]){
+    const row=document.createElement('div'); row.className='seat';
+    const t = config.types[reg]||'cpu';
+    row.innerHTML=`<span class="dot" style="background:radial-gradient(circle at 35% 30%,${shade(REG[reg].color,.5)},${REG[reg].color} 50%,${shade(REG[reg].color,-.45)})"></span><span>${REG[reg].name}</span>`;
+    const b=document.createElement('button'); b.textContent = t==='human'?'Human':'CPU'; if (t==='human') b.className='human';
+    b.onclick=()=>{config.types[reg]= t==='human'?'cpu':'human'; renderSetup();};
+    row.appendChild(b); seats.appendChild(row);
+  }
+}
+$('newBtn').onclick=()=>{ renderSetup(); show('setup'); };
+$('cancelSetup').onclick=()=>hide('setup');
+$('startBtn').onclick=()=>{ try{localStorage.setItem('cc-config',JSON.stringify(config));}catch(e){} hide('setup'); newGame(); };
+$('againBtn').onclick=()=>{ hide('over'); newGame(); };
+$('viewBoard').onclick=()=>hide('over');
+
+function showGameOver(){
+  const ranked=[...G.players].sort((a,b)=>a.rank-b.rank);
+  const w=ranked[0];
+  $('overTitle').textContent = `${w.name} wins!`;
+  $('ranks').innerHTML = ranked.map(p=>`<li><span class="dot" style="background:${p.color}"></span>${p.rank}. ${p.name} <span style="margin-left:auto;color:var(--muted);font-size:13px">${p.type==='cpu'?'CPU':'Human'}</span></li>`).join('');
+  show('over');
+}
+let toastT;
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1800); }
+
+newGame();
+})();
+</script>
+</body>
+</html>

@@ -160,6 +160,17 @@ const GAMES=[
      <path d="M160 82 l3.8 8.2 8.9 .9 -6.7 6 1.9 8.8 -7.9 -4.6 -7.9 4.6 1.9 -8.8 -6.7 -6 8.9 -.9z" fill="#f6d68a"/>
      ${cols.slice(0,3).map((c,k)=>`<circle r="6" fill="${c}" stroke="rgba(0,0,0,.35)" stroke-width="1"><animateMotion dur="${9+k*2}s" begin="-${k*3}s" repeatCount="indefinite" calcMode="discrete" keyPoints="${Array.from({length:37},(_,i)=>(i/36).toFixed(3)).join(';')}" keyTimes="${Array.from({length:37},(_,i)=>(i/36).toFixed(3)).join(';')}" path="M${160+R*1.55} 95 A${R*1.55} ${R} 0 1 1 ${160+R*1.55} ${95-.01}Z"/></circle>`).join('')}
      <g class="whDie"><rect x="262" y="132" width="34" height="34" rx="7" fill="#fbfaf6"/><circle cx="271" cy="141" r="3.2" fill="#1b1b1b"/><circle cx="279" cy="149" r="3.2" fill="#1b1b1b"/><circle cx="287" cy="157" r="3.2" fill="#1b1b1b"/></g></svg>`}},
+  {path:'chinese-checkers/',title:'Chinese Checkers',blurb:'Hop your marbles across the star in long chained jumps and fill the opposite point first.',
+   tags:['2, 3, 4 or 6 players','vs. computer or same device'],
+   art:()=>{const S=11,H=S*Math.sqrt(3)/2,cx=160,cy=95,pts=[];
+     for(let q=-8;q<=8;q++)for(let r=-8;r<=8;r++){const s=-q-r;if((q>=-4&&r>=-4&&s>=-4)||(q<=4&&r<=4&&s<=4))pts.push([q,r,s])}
+     const X=([q,r])=>cx+(q+r/2)*S,Y=([q,r])=>cy+r*H;
+     const col=([q,r,s])=>r<-4?'#e5484d':r>4?'#4c7cf0':q>4?'#f2a93b':q<-4?'#a06ad8':s<-4?'#3fb27f':s>4?'#f2f0ea':null;
+     const tip=(q,r)=>`${cx+(q+r/2)*S*1.16},${cy+r*H*1.16}`;
+     return `<svg class="cc" viewBox="0 0 320 190" preserveAspectRatio="xMidYMid slice"><rect width="320" height="190" fill="#16261f"/>
+     <g fill="#c99556" stroke="#c99556" stroke-width="12" stroke-linejoin="round"><polygon points="${tip(8,-4)} ${tip(-4,8)} ${tip(-4,-4)}"/><polygon points="${tip(4,-8)} ${tip(4,4)} ${tip(-8,4)}"/></g>
+     ${pts.map(p=>{const c=col(p);return c?`<circle cx="${X(p)}" cy="${Y(p)}" r="3.9" fill="${c}"/>`:`<circle cx="${X(p)}" cy="${Y(p)}" r="1.9" fill="#5b3a19"/>`}).join('')}
+     <circle r="4.6" fill="#f6d68a" stroke="rgba(0,0,0,.35)"><animateMotion dur="4s" repeatCount="indefinite" path="M${cx-22} ${cy+2*H*2} q11 -16 22 -${4*H} q11 -16 22 -${4*H} q-11 -16 -22 -${4*H} L${cx-22} ${cy+2*H*2}"/></circle></svg>`}},
 ];
 
 /* ---------- greeting ---------- */

@@ -7,6 +7,7 @@ Browser board games. Open `index.html` to pick a game.
 | Ticket to Ride | `ticket-to-ride/` |
 | Go-Stop (화투) | `go-stop/` |
 | Wahoo | `wahoo/` |
+| Chinese Checkers | `chinese-checkers/` |
 
 ## Adding a game
 1. Put the game in its own folder with an `index.html`.
