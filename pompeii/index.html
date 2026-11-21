@@ -776,6 +776,7 @@ async function placeTurn(pi) {
     log(`${cn(c)} moves into ${placeName(ch.k)}${o.wild ? ' (wild card)' : ''}.`);
     render();
     // Relatives (only after the first AD 79 card, never from a wild card)
+    if (!S.stirred && !o.wild && before > 0) log(`No relatives yet: they only come after the first AD 79 card is drawn.`);
     if (S.stirred && !o.wild && before > 0) {
       const used = new Set(); let placed = 0;
       for (let i = 0; i < before && homeCount(pi); i++) {
