@@ -47,6 +47,12 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
 @keyframes hl{from{fill-opacity:.25;stroke-opacity:.6}to{fill-opacity:.7;stroke-opacity:1}}
 #board .glow{animation:glow 1.6s ease-in-out infinite alternate;pointer-events:none}
 @keyframes glow{from{opacity:0}to{opacity:.32}}
+#board .plume{transform-box:fill-box;transform-origin:50% 100%;animation:plume 4s ease-in-out infinite alternate}
+@keyframes plume{to{transform:scale(1.08,1.15)}}
+#board .vglow{animation:vpulse 1.4s ease-in-out infinite alternate}
+@keyframes vpulse{from{opacity:.45}to{opacity:1}}
+#board .ash{animation:ash 3.6s linear infinite}
+@keyframes ash{from{transform:translate(0,0);opacity:1}to{transform:translate(-30px,95px);opacity:0}}
 #board .fresh{animation:fresh 1.2s ease-out 1}
 @keyframes fresh{from{opacity:.9}to{opacity:0}}
 .promptbar{display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px 12px;background:linear-gradient(90deg,rgba(155,45,32,.35),rgba(33,22,20,.9));border:1px solid var(--line);border-radius:12px;min-height:58px}
@@ -138,7 +144,7 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
   header{padding:0 0 6px;margin-bottom:8px;flex-wrap:nowrap}
   h1{font-size:1.25rem}
   h1 small{display:inline;margin-left:10px}
-  .layout{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,57fr) minmax(0,43fr);gap:14px;align-items:stretch}
+  .layout{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,61fr) minmax(0,39fr);gap:14px;align-items:stretch}
   .boardcol{min-height:0;display:flex;align-items:flex-start}
   .boardwrap{width:100%;max-height:100%;margin:0;padding:4px;display:flex;align-items:center;justify-content:center}
   #board{width:100%;height:auto;max-height:calc(100vh - 80px);max-width:100%}
@@ -150,14 +156,14 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
   .housepanel{flex:1;padding:6px 8px}
   .housepanel .houses{grid-template-columns:1fr 1fr}
   .house{padding:4px 6px;gap:1px 8px}
-  .house .st{gap:8px;font-size:.78em}
+  .house .st{gap:8px;font-size:.78em;flex-wrap:wrap}
   .house .nm small{font-size:.7em}
   .house .nm small .tr{display:none}
   .promptbar{margin:0;min-height:0;padding:7px 10px}
   .handwrap{flex:0 0 auto}
   .handwrap .section-h{margin:0 0 2px}
   .hand{overflow:visible;padding:6px 2px 8px;gap:1.2vh}
-  .hand .card{font-size:clamp(6px,min(1.22vh,.6vw),13px)}
+  .hand .card{font-size:clamp(6px,min(1.22vh,.56vw),13px)}
   .hand .discard .card{font-size:clamp(5px,.78vh,8px)}
   .hand-note{max-width:60ch}
   .bottomrow{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:8px}
@@ -203,7 +209,7 @@ h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;col
     <button class="btn" id="newBtn">New game</button>
   </header>
   <div class="layout">
-    <div class="boardcol"><div class="boardwrap"><svg id="board" viewBox="-60 -60 640 480" role="img" aria-label="Map of Pompeii and the countryside around its walls"></svg></div></div>
+    <div class="boardcol"><div class="boardwrap"><svg id="board" viewBox="-12 -92 544 466" role="img" aria-label="Map of Pompeii and the countryside around its walls"></svg></div></div>
     <div class="panelcol">
       <div class="toprow">
         <div class="mountain" id="mountain"></div>
@@ -596,7 +602,7 @@ const ICON = {
 /* ---- Static scenery (countryside, trees), generated once ---- */
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 /* Board drawing area: city grid is 520 x 360; countryside margin around it */
-const VB = {x:-60, y:-60, w:640, h:480};
+const VB = {x:-12, y:-92, w:544, h:466};
 const ROADS_OUT = GATES.map(g => {
   const cx = g.c*CS + 20, cy = g.r*CS + 20, [dx, dy] = g.dir.map(v => -v);   // outward
   const far = (dx ? (dx > 0 ? VB.x + VB.w : VB.x) - cx : (dy > 0 ? VB.y + VB.h : VB.y) - cy);
@@ -607,7 +613,7 @@ const ROADS_OUT = GATES.map(g => {
 const nearCity = (x, y, pad) => { for (const [dx, dy] of [[0,0],[pad,0],[-pad,0],[0,pad],[0,-pad]]) { const c = Math.floor((x+dx)/CS), r = Math.floor((y+dy)/CS); if (interior(c, r)) return true; } return false; };
 const SCENERY = (() => {
   const R = rng(79); let s = '';
-  [[-55,170,40,90,-4],[525,20,50,90,6],[300,385,120,40,-3],[60,395,110,38,4],[540,300,40,80,3],[250,-55,90,32,2],[420,-50,110,34,-2]].forEach(([x,y,w,h,a], i) => {
+  [[290,-70,80,34,2],[400,-80,100,40,-3],[170,338,90,26,2],[300,336,100,28,-2],[420,340,70,24,3],[60,292,80,24,-3]].forEach(([x,y,w,h,a], i) => {
     s += `<g transform="rotate(${a} ${x + w/2} ${y + h/2})"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${i % 2 ? '#a7b862' : '#8fa955'}" stroke="#7a9446" stroke-width="1"/>`;
     const vert = h > w; for (let t = 6; t < (vert ? w : h); t += 6) s += vert ? `<path d="M${x + t} ${y + 4} v${h - 8}" stroke="#6f8a3e" stroke-width="2" stroke-dasharray="3 2"/>` : `<path d="M${x + 4} ${y + t} h${w - 8}" stroke="#6f8a3e" stroke-width="2" stroke-dasharray="3 2"/>`;
     s += '</g>';
@@ -616,7 +622,7 @@ const SCENERY = (() => {
   for (let i = 0; i < 300; i++) {
     const x = VB.x + 6 + R() * (VB.w - 12), y = VB.y + 6 + R() * (VB.h - 12);
     if (nearCity(x, y, 26)) continue;
-    if (x < 110 && y < 30) continue;   // Vesuvius corner
+    if (x < 250 && y < 36) continue;   // Vesuvius
     if (nearRoad(x, y)) continue;
     if (R() < .5) s += `<ellipse cx="${x + 2}" cy="${y + 5}" rx="3" ry="2" fill="rgba(0,0,0,.25)"/><ellipse cx="${x}" cy="${y}" rx="2.6" ry="7" fill="#2f5a34" stroke="#1f3f24" stroke-width=".7"/>`;
     else { const r = 4 + R() * 3; s += `<circle cx="${x + 2}" cy="${y + 3}" r="${r}" fill="rgba(0,0,0,.22)"/><circle cx="${x}" cy="${y}" r="${r}" fill="#4f7a3a" stroke="#355a28" stroke-width=".8"/><circle cx="${x - r/3}" cy="${y - r/3}" r="${r/2.2}" fill="#6a9550"/>`; }
@@ -636,6 +642,30 @@ const WALL = (() => {
   const d = segs.map(([a,b,c,e]) => `M${a} ${b} L${c} ${e}`).join(' ');
   return `<path d="${d}" stroke="#5b5046" stroke-width="15" stroke-linecap="square" fill="none"/><path d="${d}" stroke="#ece4d4" stroke-width="10" stroke-linecap="square" fill="none"/><path d="${d}" stroke="#bdb19d" stroke-width="1" stroke-dasharray="5 3" fill="none"/>`;
 })();
+/* Vesuvius above the city: calm, smoking after the first AD 79, erupting in phase 2 */
+function VESUVIUS() {
+  const stage = S.phase === 'place' ? (S.stirred ? 1 : 0) : 2, lost = S.players.reduce((a, p) => a + p.lost, 0);
+  let s = `<defs><linearGradient id="mtn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6e5b4f"/><stop offset="1" stop-color="#8d7a62"/></linearGradient>
+    <radialGradient id="mglow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffcf5a" stop-opacity=".9"/><stop offset="1" stop-color="#ff5a1a" stop-opacity="0"/></radialGradient></defs>`;
+  s += `<path d="M-12 34 L-12 -14 C10 -26 30 -38 52 -52 L70 -60 L84 -56 L100 -61 L120 -52 C150 -36 190 -6 236 34Z" fill="url(#mtn)" stroke="#4a3a30" stroke-width="1.5"/>`;
+  s += `<path d="M70 -60 C60 -40 44 -20 20 2 M100 -61 C110 -40 130 -18 160 6 M84 -56 C86 -30 80 -6 74 20" stroke="#5a4a3e" stroke-width="1.2" fill="none" opacity=".7"/>`;
+  s += `<path d="M-12 34 C40 20 120 26 236 34Z" fill="#7d9a4f" opacity=".6"/>`;
+  s += `<ellipse cx="85" cy="-58" rx="17" ry="4.5" fill="${stage ? '#ff8a2a' : '#2b1f1a'}" stroke="#3a2a22"/>`;
+  if (stage === 2) {
+    s += `<circle cx="85" cy="-58" r="34" fill="url(#mglow)" class="${REDUCED ? '' : 'vglow'}"/>`;
+    s += `<path d="M78 -56 C70 -40 62 -24 50 -6 C44 4 40 14 36 30 M92 -56 C100 -38 112 -22 128 -4 C136 6 142 18 150 30 M85 -54 C86 -34 84 -14 88 10" stroke="#ff6a1a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M78 -56 C70 -40 62 -24 50 -6 C44 4 40 14 36 30 M92 -56 C100 -38 112 -22 128 -4 C136 6 142 18 150 30 M85 -54 C86 -34 84 -14 88 10" stroke="#ffd25a" stroke-width="1.2" fill="none" stroke-linecap="round"/>`;
+  }
+  if (stage >= 1) {
+    const big = stage === 2;
+    s += `<g class="${REDUCED ? '' : 'plume'}" opacity="${big ? .95 : .75}"><path d="M85 -60 C80 -66 90 -72 85 -78" stroke="#9c928b" stroke-width="${big ? 9 : 5}" fill="none"/>
+      <ellipse cx="85" cy="-80" rx="${big ? 60 : 28}" ry="${big ? 9 : 6}" fill="#8d847e"/><ellipse cx="${big ? 55 : 72}" cy="-77" rx="${big ? 26 : 12}" ry="6" fill="#a59c95"/><ellipse cx="${big ? 118 : 98}" cy="-78" rx="${big ? 28 : 12}" ry="6" fill="#a59c95"/></g>`;
+  }
+  if (stage === 2) for (let i = 0; i < 10; i++) s += `<circle class="${REDUCED ? '' : 'ash'}" style="animation-delay:-${(i * .37).toFixed(2)}s" cx="${40 + i * 11}" cy="${-70 + (i % 3) * 8}" r="1.6" fill="#e8d6b4"/>`;
+  s += `<text x="-4" y="-66" font-family="Cinzel, serif" font-weight="900" font-size="13" fill="#f2e6cc" stroke="#3a2a22" stroke-width="2.5" paint-order="stroke" letter-spacing="1.5">VESUVIUS</text>`;
+  if (lost) s += `<g transform="translate(140 -34)"><circle r="11" fill="#2b1f1a" stroke="#ff8a2a" stroke-width="1.5"/><text y="1" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="800" fill="#ffd8a0">${lost}</text></g><text x="154" y="-30" font-size="7.5" font-weight="700" fill="#f2e6cc" stroke="#3a2a22" stroke-width="2" paint-order="stroke">in the volcano</text>`;
+  return s;
+}
 function decorArt(type, c, r) {
   const x = c*CS, y = r*CS, h = hash(c, r);
   let s = `<rect x="${x}" y="${y}" width="40" height="40" fill="#dccca6"/><circle cx="${x + 8 + h%20}" cy="${y + 30 - h%9}" r=".9" fill="#a8976f"/><circle cx="${x + 30 - h%11}" cy="${y + 9 + h%13}" r=".9" fill="#a8976f"/>`;
@@ -928,10 +958,7 @@ function renderBoard() {
   s += `<defs><radialGradient id="lavaG"><stop offset="0" stop-color="#ffd25a"/><stop offset=".5" stop-color="#ff7a1a"/><stop offset="1" stop-color="#a3220b"/></radialGradient>
     <linearGradient id="sea" x1="0" x2="1"><stop offset="0" stop-color="#3f7690"/><stop offset="1" stop-color="#6aa0b3"/></linearGradient></defs>`;
   s += `<rect x="${VB.x}" y="${VB.y}" width="${VB.w}" height="${VB.h}" fill="#9db763"/>`;
-  s += `<path d="M-60 250 C-46 290 -44 340 -40 380 C-38 400 -44 410 -50 420 L-60 420Z" fill="#dcc995"/><path d="M-60 262 C-50 300 -50 345 -48 380 C-48 398 -52 408 -60 416Z" fill="url(#sea)"/>`;
-  // Vesuvius, where the volcano piece stands on the real board
-  s += `<path d="M-60 40 L-60 -60 L110 -60 C80 -50 60 -30 40 -24 C10 -14 -20 -2 -60 40Z" fill="#7d6d5f" stroke="#5b4d42"/><path d="M-60 -10 C-40 -28 -10 -42 20 -52 L50 -60 L-60 -60Z" fill="#665649"/><ellipse cx="-14" cy="-38" rx="14" ry="4" fill="#3a2a25"/><path d="M-12 -42 C-16 -50 -8 -54 -12 -60" stroke="#b8aea6" stroke-width="6" fill="none" opacity=".8"/>`;
-  s += `<text x="-52" y="-6" font-family="Cinzel, serif" font-weight="700" font-size="9" fill="#f2e6cc" letter-spacing="1">VESUVIUS</text>`;
+  s += VESUVIUS();
   s += SCENERY;
   ROADS_OUT.forEach(d => s += `<path d="${d}" stroke="#a89466" stroke-width="16" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#d8c497" stroke-width="12" fill="none" stroke-linecap="round"/>`);
   for (let r = 1; r <= 7; r++) for (let c = 1; c <= 11; c++) {
@@ -967,7 +994,7 @@ function renderBoard() {
       <path d="M${ex-17} ${ey-9} l17 -7 l17 7Z" fill="#b8603b" stroke="#4a2a18" stroke-width=".9"/><path d="M${ex-6} ${ey+9} v-8 a6 6 0 0 1 12 0 v8Z" fill="${blocked ? '#8a1a08' : '#2a1d14'}"/></g>`;
     const [dx, dy] = g.dir, tx = ex - dx*34 + (g.id === 6 ? -34 : g.id === 5 ? 34 : 0), ty = ey - dy*30, tr = dx ? -90 * dx : 0;
     s += `<text x="${tx}" y="${ty}" transform="rotate(${tr} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle" font-family="Cinzel, serif" font-weight="700" font-size="9" fill="#2a1b12" stroke="#f2e6cc" stroke-width="2.6" paint-order="stroke" letter-spacing=".6">${g.name.toUpperCase()}</text>`; });
-  s += `<g transform="translate(560 -35)"><circle r="15" fill="rgba(242,230,204,.85)" stroke="#5b4d42"/><path d="M0 -12 L4 2 L0 0 L-4 2Z" fill="#9b2d20"/><path d="M0 12 L4 -2 L0 0 L-4 -2Z" fill="#5b4d42"/><text y="-17" text-anchor="middle" font-family="Cinzel, serif" font-size="8" font-weight="700" fill="#2a1b12">N</text></g>`;
+  s += `<g transform="translate(505 -70)"><circle r="15" fill="rgba(242,230,204,.85)" stroke="#5b4d42"/><path d="M0 -12 L4 2 L0 0 L-4 2Z" fill="#9b2d20"/><path d="M0 12 L4 -2 L0 0 L-4 -2Z" fill="#5b4d42"/><text y="-17" text-anchor="middle" font-family="Cinzel, serif" font-size="8" font-weight="700" fill="#2a1b12">N</text></g>`;
   // lava
   for (const [k, sym] of S.lava) { const [c, r] = P(k), x = c*CS, y = r*CS, h = hash(c, r);
     s += `<rect x="${x}" y="${y}" width="40" height="40" fill="url(#lavaG)"/><path d="M${x+3} ${y+8+h%9} l9 3 l5 -4 l8 6 M${x+22} ${y+30-h%7} l7 -3 l8 4" stroke="#7a1606" stroke-width="1.6" fill="none" opacity=".7"/>
