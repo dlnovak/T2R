@@ -88,6 +88,12 @@ h1{font-family:Fraunces,Georgia,serif;font-weight:800;font-size:clamp(44px,8.5vw
 .petal{animation:fall var(--d) linear infinite;animation-delay:var(--dl)}
 @keyframes fall{from{transform:translate(0,-20px) rotate(0)}to{transform:translate(40px,200px) rotate(300deg)}}
 
+.pm .lava{stroke-dasharray:6 4;animation:march 1.8s linear infinite}
+.game:hover .pm .lava{animation-duration:.7s}
+.pm .ash{animation:ashfall 6s linear infinite;animation-delay:var(--dl)}
+@keyframes ashfall{from{transform:translate(0,0)}to{transform:translate(-30px,170px)}}
+.pm .plume{transform-origin:170px 40px;animation:plume 5s ease-in-out infinite alternate}
+@keyframes plume{to{transform:scale(1.08,1.12)}}
 footer{margin-top:40px;color:var(--muted);font-size:13px;text-align:center}
 
 @media (max-width:600px){
@@ -171,6 +177,18 @@ const GAMES=[
      <g fill="#c99556" stroke="#c99556" stroke-width="12" stroke-linejoin="round"><polygon points="${tip(8,-4)} ${tip(-4,8)} ${tip(-4,-4)}"/><polygon points="${tip(4,-8)} ${tip(4,4)} ${tip(-8,4)}"/></g>
      ${pts.map(p=>{const c=col(p);return c?`<circle cx="${X(p)}" cy="${Y(p)}" r="3.9" fill="${c}"/>`:`<circle cx="${X(p)}" cy="${Y(p)}" r="1.9" fill="#5b3a19"/>`}).join('')}
      <circle r="4.6" fill="#f6d68a" stroke="rgba(0,0,0,.35)"><animateMotion dur="4s" repeatCount="indefinite" path="M${cx-22} ${cy+2*H*2} q11 -16 22 -${4*H} q11 -16 22 -${4*H} q-11 -16 -22 -${4*H} L${cx-22} ${cy+2*H*2}"/></circle></svg>`}},
+  {path:'pompeii/',title:'Flight from Vesuvius',blurb:'Pompeii, AD 79. Settle your family in the city, then race them out through the seven gates as the lava spreads.',
+   tags:['2–4 players','Online or same device'],
+   art:()=>`<svg class="pm" viewBox="0 0 320 190" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="pmsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1210"/><stop offset=".7" stop-color="#7a2a16"/><stop offset="1" stop-color="#c4561f"/></linearGradient></defs>
+     <rect width="320" height="190" fill="url(#pmsky)"/>
+     <g class="plume" fill="#8d847e" opacity=".85"><ellipse cx="170" cy="30" rx="70" ry="16"/><ellipse cx="135" cy="40" rx="34" ry="11"/><ellipse cx="210" cy="38" rx="38" ry="11"/></g>
+     <path d="M166 92 C162 72 172 60 168 40" stroke="#a59c95" stroke-width="10" fill="none"/>
+     <path d="M40 150 L140 92 L156 98 L170 88 L184 98 L200 92 L300 150Z" fill="#3a2a25"/>
+     <path class="lava" d="M170 90 L160 112 L170 124 L158 150 M172 90 L186 116 L180 132 L192 150" stroke="#ff7a1a" stroke-width="4" fill="none" stroke-linecap="round"/>
+     <rect x="0" y="146" width="320" height="44" fill="#d8c79f"/>
+     <g fill="#b8603b" stroke="#4a2a18" stroke-width="1">${[20,62,104,146,188,230,272].map((x,i)=>`<rect x="${x}" y="${154+(i%2)*6}" width="30" height="${18-(i%2)*4}"/>`).join('')}</g>
+     <rect x="0" y="144" width="320" height="5" fill="#e6dccb" stroke="#5b5046" stroke-width="1"/>
+     ${[[60,20,0],[250,60,2],[120,10,4],[290,30,1]].map(([x,y,d])=>`<circle class="ash" style="--dl:-${d}s" cx="${x}" cy="${y}" r="2" fill="#e8d6b4"/>`).join('')}</svg>`},
 ];
 
 /* ---------- greeting ---------- */

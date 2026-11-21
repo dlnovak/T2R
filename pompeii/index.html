@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight from Vesuvius</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya+Sans:wght@400;500;700&family=Alegreya:ital@1&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Fresco night: Pompeian red and ochre on volcanic black; the board is a painted plan of the walled city */
+  --night:#130d0c; --panel:#211614; --fresco:#9b2d20; --ochre:#d9a43a; --plaster:#f1e5c9; --ash:#a1968e; --ink:#25180f;
+  --line:rgba(217,164,58,.32);
+  --display:'Cinzel', 'Trajan Pro', Georgia, serif;
+  --body:'Alegreya Sans', 'Gill Sans', system-ui, sans-serif;
+  --flavor:'Alegreya', Georgia, serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--night);background-image:radial-gradient(120% 60% at 15% -10%, rgba(155,45,32,.45), transparent 60%),radial-gradient(80% 50% at 100% 0%, rgba(217,164,58,.10), transparent 60%);color:var(--plaster);font-family:var(--body);font-size:16px;line-height:1.4}
+button{font:inherit;cursor:pointer}
+button:focus-visible,.card:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--ochre);outline-offset:2px}
+#app{max-width:1180px;margin:0 auto;padding:12px 16px 40px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:4px 0 10px;border-bottom:1px solid var(--line);margin-bottom:12px}
+h1{font-family:var(--display);font-weight:900;font-size:1.35rem;letter-spacing:.06em;margin:0;color:var(--ochre);text-wrap:balance}
+h1 small{display:block;font-weight:500;font-size:.62rem;letter-spacing:.22em;color:var(--ash)}
+.chip{font-family:var(--display);font-size:.72rem;letter-spacing:.12em;padding:4px 10px;border:1px solid var(--line);border-radius:99px;color:var(--plaster);background:rgba(155,45,32,.35)}
+.spacer{flex:1}
+.btn{background:transparent;color:var(--plaster);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:.85rem}
+.btn:hover{border-color:var(--ochre)}
+.btn.primary{background:var(--fresco);border-color:#c5503d;color:#fff;font-weight:700}
+.btn.primary:hover{background:#b23726}
+.layout{display:grid;gap:14px}
+.mountain{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.mountain svg{width:92px;height:56px;flex:0 0 auto}
+.mt-title{font-family:var(--display);font-size:.75rem;letter-spacing:.14em;color:var(--ochre)}
+.mt-counts{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:3px;font-variant-numeric:tabular-nums}
+.mt-counts span{display:inline-flex;align-items:center;gap:5px;font-weight:700}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block;border:1.5px solid #000}
+.boardwrap{margin-top:10px;background:#1b1210;border:1px solid var(--line);border-radius:12px;padding:6px;box-shadow:inset 0 0 0 4px #2a1c18}
+#board{display:block;width:100%;height:auto;max-width:640px;margin:0 auto;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#board .hit{fill:transparent;cursor:pointer}
+#board .hl{fill:rgba(255,215,106,.28);stroke:#ffd76a;stroke-width:2.2;pointer-events:none;animation:hl 1.1s ease-in-out infinite alternate}
+@keyframes hl{from{fill-opacity:.25;stroke-opacity:.6}to{fill-opacity:.7;stroke-opacity:1}}
+#board .glow{animation:glow 1.6s ease-in-out infinite alternate;pointer-events:none}
+@keyframes glow{from{opacity:0}to{opacity:.32}}
+#board .fresh{animation:fresh 1.2s ease-out 1}
+@keyframes fresh{from{opacity:.9}to{opacity:0}}
+.promptbar{display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px 12px;background:linear-gradient(90deg,rgba(155,45,32,.35),rgba(33,22,20,.9));border:1px solid var(--line);border-radius:12px;min-height:58px}
+#prompt{flex:1;font-size:.95rem}
+#prompt b{color:var(--ochre)}
+#actions{display:flex;gap:8px}
+.tile{display:inline-block;width:42px;height:42px;flex:0 0 auto;border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px #000,0 0 14px rgba(255,120,40,.55)}
+.tile svg{width:100%;height:100%;display:block}
+.section-h{font-family:var(--display);font-size:.78rem;letter-spacing:.16em;color:var(--ochre);margin:16px 0 6px}
+.hand{display:flex;gap:10px;overflow-x:auto;padding:8px 2px 14px;scroll-snap-type:x proximity}
+.hand .card{scroll-snap-align:start}
+.hand-note{color:var(--ash);font-size:.88rem;padding:6px 0}
+/* ---------- Cards ---------- */
+.card{font-size:10px;width:13em;flex:0 0 auto;background:linear-gradient(170deg,#f6edd6,#e6d5b1);color:var(--ink);border-radius:.8em;border:1px solid #6b4e33;box-shadow:0 .35em .9em rgba(0,0,0,.5);overflow:hidden;display:flex;flex-direction:column;position:relative;text-align:left;padding:0;transition:transform .15s ease, box-shadow .15s ease}
+.card.big{font-size:18px;cursor:default}
+.hand .card{cursor:pointer}
+.card.sel{transform:translateY(-.6em);box-shadow:0 0 0 .25em var(--ochre),0 .8em 1.4em rgba(0,0,0,.6)}
+.card.dim{opacity:.55}
+.cband{background:var(--bc);display:flex;justify-content:space-between;align-items:center;padding:.35em .6em .3em;border-bottom:1px solid rgba(0,0,0,.35);gap:.4em}
+.cnum{font-family:var(--display);font-weight:900;font-size:1.9em;line-height:1;color:var(--ink)}
+.ckind{font-family:var(--display);font-size:.75em;letter-spacing:.14em;font-weight:700;color:rgba(37,24,15,.8)}
+.cpips{display:flex;gap:.2em}
+.cpips i{width:.75em;height:.75em;border-radius:50%;background:var(--ink);display:block;box-shadow:inset 0 0 0 .14em #f6edd6}
+.cart{margin:.45em .5em .2em;border-radius:.4em;background:radial-gradient(120% 90% at 50% 10%, #fbf4e2, #e9d8b5);border:1px solid rgba(107,78,51,.35)}
+.cart svg{display:block;width:100%;height:auto}
+.cname{font-family:var(--display);font-weight:700;font-size:1.15em;line-height:1.1;padding:.15em .6em 0;text-wrap:balance}
+.clatin{font-family:var(--flavor);font-style:italic;font-size:.95em;color:#7a5634;padding:0 .6em}
+.cfact{font-size:.93em;line-height:1.3;padding:.35em .6em .2em;margin:0;flex:1}
+.cfoot{display:flex;justify-content:space-between;align-items:flex-end;padding:.25em .6em .55em;font-family:var(--display);font-size:.8em;font-weight:700;letter-spacing:.06em;color:#5b3f27}
+.cfoot svg{width:4.4em;height:4.4em;border:1px solid rgba(0,0,0,.35);border-radius:.2em}
+.ceffect{margin:.2em .6em .6em;padding:.45em .55em;border:1px solid rgba(37,24,15,.45);border-radius:.35em;background:rgba(255,255,255,.35);font-size:.92em;line-height:1.3;font-weight:500}
+.ceffect b{font-family:var(--display);font-size:.85em;letter-spacing:.08em;display:block;color:var(--fresco)}
+.pcard{background:linear-gradient(170deg,#ece1cf,#d5c3a6)}
+.pcard .cband{background:#2c1b2b;color:var(--ochre)}
+.pcard .cnum,.pcard .ckind{color:var(--ochre)}
+.pcard .cart{background:radial-gradient(120% 90% at 50% 10%, #4a3446, #241522)}
+.ecard{background:linear-gradient(170deg,#f3dcc0,#dcae86)}
+.ecard .cband{background:linear-gradient(90deg,#7a140a,#d2501a)}
+.ecard .cnum,.ecard .ckind{color:#ffe2a8}
+.ecard .cart{background:radial-gradient(120% 90% at 50% 10%, #3b1a12, #120806)}
+.cdate{font-family:var(--flavor);font-style:italic;font-size:.9em;color:#7a3d1c;padding:0 .6em}
+/* ---------- Side panel ---------- */
+.side{display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.houses{display:flex;flex-direction:column;gap:6px}
+.house{display:grid;grid-template-columns:14px 1fr auto;gap:4px 10px;align-items:center;padding:7px 8px;border-radius:8px;border:1px solid transparent}
+.house.cur{border-color:var(--pc);background:rgba(255,255,255,.04)}
+.house .sw{width:14px;height:14px;border-radius:50%;background:var(--pc);border:2px solid #000}
+.house .nm{font-family:var(--display);font-weight:700;font-size:.9rem}
+.house .nm small{font-family:var(--body);font-weight:500;color:var(--ash);font-size:.75rem;margin-left:6px}
+.house .st{grid-column:2/4;display:flex;gap:12px;font-size:.78rem;color:var(--ash);font-variant-numeric:tabular-nums}
+.house .st b{color:var(--plaster)}
+.house .esc{font-family:var(--display);font-weight:900;font-size:1.2rem;color:var(--pc);font-variant-numeric:tabular-nums}
+#log{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto;font-size:.85rem}
+#log li{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+#log li.ev{color:var(--ochre);font-family:var(--display);font-size:.78rem;letter-spacing:.06em}
+.hn{color:var(--pc);font-weight:700}
+.legend{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.legend div{display:flex;align-items:center;gap:6px;font-size:.78rem}
+.legend .tile{width:30px;height:30px;box-shadow:0 0 0 1px #000}
+.legend b{font-family:var(--display);font-size:.78rem;display:block}
+.legend span span{color:var(--ash);font-size:.72rem}
+/* ---------- Modal ---------- */
+.modal{position:fixed;inset:0;background:rgba(8,4,3,.78);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20;overflow:auto}
+.modal[hidden]{display:none}
+.mbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;max-width:560px;width:100%;max-height:calc(100% - 8px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.mbox.cardbox{background:transparent;border:0;box-shadow:none;display:flex;flex-direction:column;align-items:center;gap:12px;width:auto}
+.mbox h2{font-family:var(--display);color:var(--ochre);margin:0 0 8px;font-size:1.3rem;text-wrap:balance}
+.mbox h3{font-family:var(--display);color:var(--ochre);font-size:.9rem;letter-spacing:.1em;margin:16px 0 4px}
+.mbox p,.mbox li{font-size:.95rem}
+.mbox ul{padding-left:18px;margin:4px 0}
+.drawnby{font-size:.9rem;color:var(--ash)}
+.setup-row{display:grid;grid-template-columns:16px 1fr auto;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:transparent;border:0;color:var(--ash);padding:6px 12px;font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--fresco);color:#fff;font-weight:700}
+.setup-row.off{opacity:.35}
+.result{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.result .rk{font-family:var(--display);font-weight:900;color:var(--ochre)}
+/* ---------- Narrow screens: stacked, page scrolls ---------- */
+.toprow,.bottomrow,.panelcol{display:flex;flex-direction:column;gap:12px}
+.panelcol{margin-top:12px}
+.housepanel .houses{display:grid;grid-template-columns:1fr;gap:4px}
+/* ---------- Wide screens (16:9 and similar): everything on one screen ---------- */
+@media (min-width:900px) and (min-aspect-ratio:5/4){
+  html,body{height:100%;overflow:hidden}
+  body{font-size:clamp(12px,1.45vh,16px)}
+  #app{height:100%;max-width:none;display:flex;flex-direction:column;padding:8px 16px 12px}
+  header{padding:0 0 6px;margin-bottom:8px;flex-wrap:nowrap}
+  h1{font-size:1.25rem}
+  h1 small{display:inline;margin-left:10px}
+  .layout{flex:1;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:stretch}
+  .boardcol{height:100%;aspect-ratio:1/1;min-height:0}
+  .boardwrap{height:100%;margin:0;padding:4px;display:flex;align-items:center;justify-content:center}
+  #board{height:100%;width:auto;max-width:100%}
+  .panelcol{margin:0;min-height:0;gap:8px}
+  .toprow{flex-direction:row;align-items:stretch;gap:8px}
+  .mountain{flex-direction:column;justify-content:center;text-align:center;padding:6px 10px;gap:4px;flex:0 0 auto}
+  .mountain svg{width:8.5vh;height:5.2vh}
+  .mt-counts{justify-content:center}
+  .housepanel{flex:1;padding:6px 8px}
+  .housepanel .houses{grid-template-columns:1fr 1fr}
+  .house{padding:4px 6px;gap:1px 8px}
+  .house .st{gap:8px;font-size:.78em}
+  .house .nm small{font-size:.7em}
+  .house .nm small .tr{display:none}
+  .promptbar{margin:0;min-height:0;padding:7px 10px}
+  .handwrap{flex:0 0 auto}
+  .handwrap .section-h{margin:0 0 2px}
+  .hand{overflow:visible;padding:6px 2px 8px;gap:1.2vh}
+  .hand .card{font-size:clamp(7px,1.32vh,14px)}
+  .hand-note{max-width:60ch}
+  .bottomrow{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:8px}
+  .bottomrow .panel{min-height:0;overflow:hidden;display:flex;flex-direction:column;padding:6px 10px}
+  .legend{gap:4px 8px}
+  .legend .tile{width:3vh;height:3vh}
+  #log{flex:1;max-height:none;min-height:0;font-size:.82em}
+  .section-h{font-size:.72em}
+}
+.tabs{display:flex;margin:4px 0 12px;width:100%}
+.tabs button{flex:1}
+.err{color:#ff8a7a;font-size:.88rem;min-height:1.2em}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap}
+.lbl{display:block;font-family:var(--display);font-size:.8rem;letter-spacing:.1em;color:var(--ochre);margin-bottom:4px}
+.codein{font-family:var(--display);font-size:1.6rem;letter-spacing:.3em;text-transform:uppercase;width:100%;max-width:240px;padding:8px 12px;background:#140d0c;color:var(--plaster);border:1px solid var(--line);border-radius:8px}
+.codein:focus{outline:2px solid var(--ochre)}
+.roomcode{font-family:var(--display);font-weight:900;font-size:2.6rem;letter-spacing:.3em;color:var(--ochre);text-align:center;padding:10px;margin:8px 0;border:1px dashed var(--line);border-radius:10px;background:#140d0c}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Flight from Vesuvius<small>POMPEII · AD 79</small></h1>
+    <span class="chip" id="phase">Settling the city</span>
+    <span class="chip" id="pile">Draw pile</span>
+    <span class="spacer"></span>
+    <a class="btn" href="../" style="text-decoration:none">← Game table</a>
+    <button class="btn" id="rulesBtn">How to play</button>
+    <button class="btn" id="newBtn">New game</button>
+  </header>
+  <div class="layout">
+    <div class="boardcol"><div class="boardwrap"><svg id="board" viewBox="-70 -70 660 660" role="img" aria-label="Map of Pompeii and the countryside around its walls"></svg></div></div>
+    <div class="panelcol">
+      <div class="toprow">
+        <div class="mountain" id="mountain"></div>
+        <div class="panel housepanel"><div class="houses" id="houses"></div></div>
+      </div>
+      <div class="promptbar"><span id="tileSlot"></span><div id="prompt">Choose your households to begin.</div><div id="actions"></div></div>
+      <div class="handwrap">
+        <div class="section-h" id="handTitle">Your hand</div>
+        <div class="hand" id="hand"></div>
+      </div>
+      <div class="bottomrow">
+        <div class="panel"><div class="section-h" style="margin-top:0">The six vents</div><div class="legend" id="legend"></div></div>
+        <div class="panel logpanel"><div class="section-h" style="margin-top:0">Chronicle</div><ol id="log"></ol></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="modal" hidden></div>
+
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script>
+'use strict';
+/* =============== Static data =============== */
+const N = 13, CS = 40;
+const K = (c, r) => c + ',' + r;
+const P = k => k.split(',').map(Number);
+const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+const interior = (c, r) => c >= 1 && c <= 11 && r >= 1 && r <= 11;
+const INK = '#2b1d14', COL = '#f3e8cc';
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const HOUSES = [
+  {gens:'Umbricii', m:'Umbricius', f:'Umbricia', color:'#d63a2c', light:'#ff8a7a', trade:'garum makers'},
+  {gens:'Caecilii', m:'Caecilius', f:'Caecilia', color:'#2f67c8', light:'#8fb4ff', trade:'bankers'},
+  {gens:'Popidii',  m:'Popidius',  f:'Popidia',  color:'#e2ae1c', light:'#ffd862', trade:'old nobility'},
+  {gens:'Holconii', m:'Holconius', f:'Holconia', color:'#22a17a', light:'#6fe0bb', trade:'wine growers'},
+];
+const PRAE = ['Gaius','Lucius','Marcus','Publius','Quintus','Titus','Aulus','Decimus','Gnaeus','Sextus','Numerius','Spurius'];
+const COGF = ['Prima','Secunda','Tertia','Maxima','Paulla','Rufa','Iusta','Fortunata','Felicula'];
+
+const GATES = [
+  {id:1, name:'Porta Marina',   short:'MARINA',   c:0,  r:7},
+  {id:2, name:'Porta Ercolano', short:'ERCOLANO', c:2,  r:0},
+  {id:3, name:'Porta Vesuvio',  short:'VESUVIO',  c:6,  r:0},
+  {id:4, name:'Porta di Nola',  short:'NOLA',     c:12, r:3},
+  {id:5, name:'Porta di Sarno', short:'SARNO',    c:12, r:7},
+  {id:6, name:'Porta di Nocera',short:'NOCERA',   c:10, r:12},
+  {id:7, name:'Porta di Stabia',short:'STABIA',   c:6,  r:12},
+];
+const GATE_BY_KEY = new Map();
+GATES.forEach(g => {
+  g.k = K(g.c, g.r);
+  g.inner = g.r === 0 ? K(g.c,1) : g.r === 12 ? K(g.c,11) : g.c === 0 ? K(1,g.r) : K(11,g.r);
+  g.rot = g.r === 0 ? 0 : g.r === 12 ? 180 : g.c === 0 ? -90 : 90;
+  GATE_BY_KEY.set(g.k, g);
+});
+
+const ROAD = new Set();
+for (let i = 1; i <= 11; i++) { ROAD.add(K(i,7)); ROAD.add(K(6,i)); ROAD.add(K(i,3)); ROAD.add(K(2,i)); ROAD.add(K(10,i)); }
+
+const BUILD = [
+  {roman:'I',   name:'Forum', latin:'Forum Pompeianum', icon:'forum', color:'#c8b088', cells:[[3,8],[4,8],[3,9],[4,9]],
+   fact:'The civic heart of the city. Its Temple of Jupiter was still being repaired from the earthquake of AD 62 when the mountain woke.'},
+  {roman:'II',  name:'Temple of Apollo', latin:'Templum Apollinis', icon:'temple', color:'#cf9061', cells:[[1,8],[1,9]],
+   fact:'One of the oldest sanctuaries in Pompeii. A bronze Apollo, drawing his bow, stood before its colonnade.'},
+  {roman:'III', name:'Basilica', latin:'Basilica', icon:'basilica', color:'#b09d80', cells:[[3,11],[4,11],[5,11]],
+   fact:'Law court and trading hall from the 2nd century BC. Its walls carry some of the oldest graffiti in the city.'},
+  {roman:'IV',  name:'Stabian Baths', latin:'Thermae Stabianae', icon:'baths', color:'#8db3b1', cells:[[7,8],[8,8],[7,9]],
+   fact:'The oldest public baths in town, with separate suites for men and women warmed by hollow hypocaust floors.'},
+  {roman:'V',   name:'House of the Faun', latin:'Domus Fauni', icon:'faun', color:'#cfa64c', cells:[[3,4],[4,4],[3,5]],
+   fact:'A mansion filling a whole city block, named for its dancing bronze faun. The Alexander Mosaic covered one floor.'},
+  {roman:'VI',  name:'Large Theatre', latin:'Theatrum Maius', icon:'theatre', color:'#b9826c', cells:[[7,11],[8,11],[9,11]],
+   fact:'About 5,000 spectators sat in tiers built into a natural slope. Awnings shaded them from the summer sun.'},
+  {roman:'VII', name:'Amphitheatre', latin:'Amphitheatrum', icon:'amphi', color:'#ad8a62', cells:[[11,8],[11,9],[11,10],[11,11]],
+   fact:'The oldest surviving stone amphitheatre, built about 70 BC. A riot in AD 59 got its games banned for ten years.'},
+  {roman:'VIII',name:'Macellum', latin:'Macellum', icon:'macellum', color:'#a3b37c', cells:[[1,4],[1,5]],
+   fact:'The covered food market. Fish scales were found in the drain beneath its round central pavilion.'},
+  {roman:'IX',  name:'Bakery of Modestus', latin:'Pistrinum Modesti', icon:'bakery', color:'#cc9461', cells:[[8,4]],
+   fact:'81 carbonised loaves were found still in its oven, each scored into eight wedges for breaking.'},
+  {roman:'X',   name:'Fullery of Stephanus', latin:'Fullonica Stephani', icon:'fullery', color:'#97a8bd', cells:[[9,8],[9,9]],
+   fact:'Workers cleaned cloth by treading it in vats of water mixed with urine, then bleached it with sulphur smoke.'},
+  {roman:'XI',  name:'House of the Vettii', latin:'Domus Vettiorum', icon:'vettii', color:'#bf7d72', cells:[[3,1],[4,1]],
+   fact:'Home of two freed slaves who grew rich in trade. Its dining rooms are painted with cupids at work.'},
+  {roman:'XII', name:'Temple of Isis', latin:'Iseum', icon:'isis', color:'#a996b9', cells:[[7,10],[8,10]],
+   fact:'Rebuilt after AD 62 by a freedman in the name of his six-year-old son, which won the boy a seat on the town council.'},
+];
+const CELLB = new Map();
+BUILD.forEach((b, i) => { b.i = i; b.cells = b.cells.map(([c,r]) => K(c,r)); b.cells.forEach(k => CELLB.set(k, b)); });
+
+const VENTS = [
+  {id:0, name:'Ignis',   gloss:'fire',        origin:K(5,5),  color:'#ff6a2b'},
+  {id:1, name:'Cinis',   gloss:'ash',         origin:K(9,1),  color:'#c9c2b8'},
+  {id:2, name:'Lapilli', gloss:'pumice',      origin:K(1,1),  color:'#e8cc8e'},
+  {id:3, name:'Fumus',   gloss:'smoke',       origin:K(5,10), color:'#a99ccc'},
+  {id:4, name:'Vapor',   gloss:'steam',       origin:K(9,6),  color:'#9fd8e6'},
+  {id:5, name:'Saxum',   gloss:'stone',       origin:K(1,10), color:'#d79a70'},
+];
+const VENT_AT = new Map(VENTS.map(v => [v.origin, v]));
+
+const PORTENTS = [
+  {key:'sheep', title:'Six Hundred Sheep', flavor:'Seneca wrote that a flock of six hundred fell dead in the fields of Campania after the great quake.'},
+  {key:'springs', title:'The Springs Fall Silent', flavor:'Fountains slow to a trickle and the wells turn foul, as if the mountain were drawing breath.'},
+  {key:'birds', title:'The Birds Depart', flavor:'At dawn the swallows rise from the rooftops together and do not return.'},
+  {key:'quake', title:'The Ground Shakes', flavor:'Tremors have come for days. Pliny says they caused little alarm, being common in Campania.'},
+  {key:'haruspex', title:'The Haruspex Goes Pale', flavor:'The priest lifts the liver from the sacrifice, studies its marks, and will not speak.'},
+  {key:'sea', title:'The Sea Draws Back', flavor:'Pliny the Younger saw the sea sucked away from the shore, leaving sea creatures stranded on the sand.'},
+];
+const TREMOR = {type:'tremor', title:'The Mountain Splits', date:'Seventh hour of the day · AD 79',
+  flavor:'A cloud rises over Vesuvius in the shape of an umbrella pine: a tall trunk, then branches spreading out across the sky.',
+  effect:'Each household places one lava tile, starting with whoever drew this card. Nobody may flee yet. Settling continues.'};
+const ERUPTION = {type:'eruption', title:'The Last Night', date:'AD 79 · long dated 24 August; a charcoal inscription found in 2018 points to October',
+  flavor:'Pumice falls like hail. Roofs give way under the weight. Those who stay will not see morning.',
+  effect:'The flight begins. Hands are discarded. Each turn: place one lava tile, then move up to two of your citizens.'};
+
+/* =============== SVG art =============== */
+const sv = inner => `<svg viewBox="0 0 100 64" aria-hidden="true">${inner}</svg>`;
+function cols(x0, x1, y0, y1, n, w = 3) { let s = ''; const g = (x1 - x0) / (n - 1); for (let i = 0; i < n; i++) { const x = x0 + i * g; s += `<rect x="${(x - w/2).toFixed(1)}" y="${y0}" width="${w}" height="${y1 - y0}" fill="${COL}"/>`; } return s; }
+const ground = `<path d="M0 58 H100 V64 H0Z" fill="#cdb894"/>`;
+const ICON = {
+  forum: c => sv(`<path d="M6 44 L22 20 L31 27 L42 12 L58 32 L64 28 L80 44Z" fill="#8a8794" opacity=".38"/>${ground}
+    <g stroke="${INK}" stroke-width="1.1" stroke-linejoin="round"><rect x="4" y="52" width="92" height="6" fill="${c}"/>
+    <rect x="5" y="34" width="56" height="3.5" fill="${c}"/>${cols(8,58,37.5,52,9,2.6)}
+    <rect x="64" y="42" width="30" height="10" fill="${c}"/><path d="M64 28 L79 19 L94 28Z" fill="${c}"/><rect x="64" y="28" width="30" height="2.5" fill="${c}"/>${cols(67,91,30.5,42,5,2.8)}</g>`),
+  temple: c => sv(`${ground}<g stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"><path d="M20 22 L50 7 L80 22Z" fill="${c}"/><circle cx="50" cy="17" r="2.4" fill="${COL}"/><rect x="18" y="22" width="64" height="4" fill="${c}"/>${cols(24,76,26,48,6,3.6)}<rect x="15" y="48" width="70" height="4" fill="${c}"/><rect x="11" y="52" width="78" height="6" fill="${c}"/></g>
+    <g stroke="${INK}" stroke-width="1" fill="none"><path d="M90 30 q-5 6 0 12"/><path d="M88 36 h-8"/></g>`),
+  basilica: c => sv(`${ground}<g stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"><path d="M6 26 L50 14 L94 26Z" fill="${c}"/><rect x="6" y="26" width="88" height="4" fill="${c}"/><rect x="6" y="30" width="88" height="22" fill="#e9dcc0"/>${cols(11,89,30,52,10,3)}<rect x="40" y="38" width="20" height="14" fill="${c}"/><rect x="4" y="52" width="92" height="6" fill="${c}"/></g>`),
+  baths: c => sv(`${ground}<g stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"><path d="M26 38 A24 22 0 0 1 74 38Z" fill="${c}"/><circle cx="50" cy="20" r="3" fill="${COL}"/><rect x="18" y="38" width="64" height="20" fill="${c}"/>
+    <path d="M28 58 v-9 a4 4 0 0 1 8 0 v9 M46 58 v-11 a4 4 0 0 1 8 0 v11 M64 58 v-9 a4 4 0 0 1 8 0 v9" fill="#3b2c22"/></g>
+    <g stroke="#7a8e93" stroke-width="1.6" fill="none" stroke-linecap="round"><path d="M14 30 q-4 -5 0 -10 t0 -10"/><path d="M86 30 q4 -5 0 -10 t0 -10"/><path d="M8 40 q-3 -4 0 -8"/><path d="M92 40 q3 -4 0 -8"/></g>`),
+  faun: c => sv(`${ground}<g stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"><path d="M8 30 L40 16 L72 30Z" fill="#b5532f"/><rect x="10" y="30" width="60" height="28" fill="${c}"/><rect x="34" y="40" width="12" height="18" fill="#3b2c22"/><rect x="16" y="36" width="10" height="6" fill="#3b2c22"/><rect x="54" y="36" width="10" height="6" fill="#3b2c22"/>
+    <rect x="78" y="50" width="14" height="8" fill="${COL}"/></g>
+    <g stroke="#6e5326" stroke-width="2.2" fill="none" stroke-linecap="round"><circle cx="85" cy="23" r="3" fill="#8a6a2c"/><path d="M85 26 L85 38 M85 29 L79 22 M85 29 L92 21 M85 38 L80 49 M85 38 L90 48"/></g>`),
+  theatre: c => sv(`<g stroke="${INK}" stroke-width="1.1" fill="none">${[44,37,30,23].map((r,i) => `<path d="M${50-r} 50 A${r} ${r*0.82} 0 0 1 ${50+r} 50" fill="${i%2? c : '#e3cfa6'}"/>`).join('')}<path d="M34 50 A16 13 0 0 1 66 50Z" fill="#d9c49c"/>
+    <path d="M18 34 L50 50 M82 34 L50 50 M50 8 L50 50" stroke-opacity=".35"/></g><g stroke="${INK}" stroke-width="1.2"><rect x="14" y="50" width="72" height="8" fill="${c}"/>${cols(20,80,52,58,7,2)}</g>`),
+  amphi: c => sv(`<g stroke="${INK}" stroke-width="1.2"><ellipse cx="50" cy="34" rx="46" ry="24" fill="${c}"/><ellipse cx="50" cy="34" rx="38" ry="18" fill="#c99d6f" stroke-opacity=".5"/><ellipse cx="50" cy="34" rx="28" ry="12" fill="#e8d3a6"/><ellipse cx="50" cy="34" rx="28" ry="12" fill="none"/>
+    ${[14,24,34,44,54,64,74,84].map(x => `<path d="M${x} ${52 - Math.abs(50 - x)*0.13} v4 h5 v-4 a2.5 2.5 0 0 0 -5 0Z" fill="#3b2c22" stroke-width=".6"/>`).join('')}</g>
+    <g fill="${INK}"><circle cx="44" cy="34" r="1.6"/><circle cx="56" cy="33" r="1.6"/></g>`),
+  macellum: c => sv(`${ground}<g stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"><path d="M22 26 L44 12 L66 26Z" fill="#b5532f"/><ellipse cx="44" cy="26" rx="22" ry="4" fill="${c}"/>${cols(26,62,27,52,7,3)}<ellipse cx="44" cy="54" rx="26" ry="4.5" fill="${c}"/></g>
+    <g stroke="${INK}" stroke-width="1.1"><path d="M74 40 q10 -8 20 0 q-10 8 -20 0Z M74 40 l-6 -5 v10Z" fill="#9db6c0"/><circle cx="89" cy="39" r="1.1" fill="${INK}"/></g>`),
+  bakery: c => sv(`${ground}<g stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"><path d="M14 58 L22 38 L30 58Z" fill="#6e6863"/><path d="M14 14 L22 34 L30 14Z" fill="#7b7570"/><rect x="18" y="33" width="8" height="6" fill="#58534f"/><path d="M30 24 h10" stroke-width="2"/></g>
+    <g stroke="${INK}" stroke-width="1.3"><circle cx="66" cy="36" r="20" fill="${c}"/><circle cx="66" cy="36" r="6" fill="none"/>${[0,45,90,135].map(a => { const r = a*Math.PI/180; return `<path d="M${(66+Math.cos(r)*20).toFixed(1)} ${(36+Math.sin(r)*20).toFixed(1)} L${(66-Math.cos(r)*20).toFixed(1)} ${(36-Math.sin(r)*20).toFixed(1)}"/>`; }).join('')}</g>`),
+  fullery: c => sv(`${ground}<g stroke="${INK}" stroke-width="1.2">${[20,50,80].map(x => `<path d="M${x-13} 36 L${x-10} 58 H${x+10} L${x+13} 36Z" fill="${c}"/><ellipse cx="${x}" cy="36" rx="13" ry="4" fill="#bcd2d8"/>`).join('')}</g>
+    <g stroke="${INK}" stroke-width="2" stroke-linecap="round" fill="none"><circle cx="50" cy="12" r="3" fill="${INK}"/><path d="M50 15 V26 M50 18 L44 23 M50 18 L56 23 M50 26 L46 34 M50 26 L54 34"/></g>`),
+  vettii: c => sv(`${ground}<g stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"><path d="M6 24 L50 10 L94 24Z" fill="#b5532f"/><rect x="8" y="24" width="84" height="34" fill="${c}"/><rect x="18" y="32" width="64" height="26" fill="#7fa86a"/>${cols(20,80,32,58,7,3)}<ellipse cx="50" cy="52" rx="8" ry="3" fill="#8ec6d6"/></g>
+    <g stroke="#3d6a3a" stroke-width="1.6" fill="none"><path d="M34 52 q2 -8 6 -10 M66 52 q-2 -8 -6 -10"/></g>`),
+  isis: c => sv(`${ground}<g stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"><rect x="16" y="38" width="44" height="14" fill="${c}"/><path d="M24 52 h28 v6 h-28Z" fill="${c}"/><path d="M20 22 L38 12 L56 22Z" fill="${c}"/><rect x="20" y="22" width="36" height="3" fill="${c}"/>${cols(24,52,25,38,4,3)}</g>
+    <g stroke="#7a5a1f" stroke-width="2" fill="none" stroke-linecap="round"><path d="M80 44 V58"/><path d="M80 44 C68 42 68 14 80 12 C92 14 92 42 80 44Z"/><path d="M71 22 h18 M70 30 h20 M72 37 h16" stroke-width="1.4"/></g>`),
+  sheep: () => sv(`<path d="M0 54 H100 V64 H0Z" fill="#3a2b2f"/><g fill="#efe7d6" stroke="#110a0d" stroke-width="1.2"><circle cx="42" cy="38" r="9"/><circle cx="52" cy="34" r="10"/><circle cx="62" cy="38" r="9"/><circle cx="48" cy="44" r="8"/><circle cx="58" cy="44" r="8"/></g>
+    <g fill="#2a1d22" stroke="#110a0d"><ellipse cx="72" cy="36" rx="6" ry="4.5"/><path d="M44 50 v6 M50 51 v6 M56 51 v6 M62 50 v6" stroke="#110a0d" stroke-width="2.4"/></g>
+    <g fill="#9bb38a" opacity=".45"><ellipse cx="30" cy="18" rx="22" ry="7"/><ellipse cx="66" cy="13" rx="24" ry="6"/></g>`),
+  springs: () => sv(`<g stroke="#120a0f" stroke-width="1.2"><path d="M20 44 h60 l-6 14 h-48Z" fill="#8c7b6b"/><rect x="44" y="14" width="12" height="24" fill="#a39280"/><circle cx="50" cy="22" r="4" fill="#5e4f44"/></g>
+    <g stroke="#d9a43a" stroke-width="1.6" fill="none"><path d="M50 26 v4"/><path d="M50 34 v2" stroke-dasharray="1 3"/></g><path d="M30 48 l6 4 l-3 3 l7 3" stroke="#120a0f" stroke-width="1.4" fill="none"/>`),
+  birds: () => sv(`<path d="M0 64 L26 30 L38 38 L52 22 L74 64Z" fill="#3a2b2f"/><g stroke="#efe7d6" stroke-width="2" fill="none" stroke-linecap="round">${[[58,18],[70,12],[80,20],[66,26],[88,10],[76,30]].map(([x,y]) => `<path d="M${x-5} ${y-2} q3 2 5 3 q2 -1 5 -3"/>`).join('')}</g>`),
+  quake: () => sv(`<path d="M0 50 H100 V64 H0Z" fill="#3a2b2f"/><path d="M20 50 l8 6 l-4 4 l10 4 M62 50 l-6 5 l7 3 l-4 6" stroke="#d9a43a" stroke-width="1.6" fill="none"/>
+    <g stroke="#110a0d" stroke-width="1.2" fill="#d8cdb8"><rect x="22" y="14" width="7" height="36" transform="rotate(-8 25 50)"/><rect x="46" y="14" width="7" height="36"/><rect x="70" y="16" width="7" height="34" transform="rotate(12 73 50)"/><path d="M18 14 h40 v5 h-40Z" transform="rotate(-4 38 16)"/></g>`),
+  haruspex: () => sv(`<ellipse cx="50" cy="50" rx="38" ry="8" fill="#6d5a4d" stroke="#110a0d"/><path d="M26 44 C22 28 40 22 50 30 C58 20 80 24 74 42 C68 50 34 52 26 44Z" fill="#8f3b3b" stroke="#110a0d" stroke-width="1.2"/>
+    <g stroke="#e8c8a8" stroke-width=".9" fill="none" opacity=".8"><path d="M36 36 h8 M40 32 v8 M58 34 l6 4 M62 30 l-2 8"/></g>`),
+  sea: () => sv(`<path d="M0 30 C20 26 30 34 50 30 C66 27 80 33 100 30 V36 H0Z" fill="#4c6f86" opacity=".5"/><path d="M60 22 C74 20 84 24 100 22 V30 C84 32 74 28 60 30Z" fill="#4c6f86"/><path d="M0 36 H100 V64 H0Z" fill="#b59a72"/>
+    <g fill="#c8d6dc" stroke="#110a0d" stroke-width="1"><path d="M20 50 q7 -5 14 0 q-7 5 -14 0Z M20 50 l-4 -3 v6Z"/><path d="M48 56 q6 -4 12 0 q-6 4 -12 0Z M48 56 l-4 -3 v6Z"/></g><path d="M74 46 l4 -4 l4 4 l-4 4Z" fill="#d9744a" stroke="#110a0d"/>`),
+  tremor: () => sv(`<path d="M0 64 L30 30 L40 34 L50 26 L62 34 L100 64Z" fill="#4a3a35" stroke="#000"/><path d="M48 26 C46 18 50 12 49 4" stroke="#bcb3ad" stroke-width="5" fill="none"/>
+    <g fill="#d8d0c8" opacity=".9"><ellipse cx="50" cy="6" rx="34" ry="6"/><ellipse cx="34" cy="8" rx="14" ry="5"/><ellipse cx="68" cy="8" rx="16" ry="5"/></g>`),
+  eruption: () => sv(`<path d="M0 64 L30 30 L40 34 L50 26 L62 34 L100 64Z" fill="#2c1d1a" stroke="#000"/><path d="M50 26 L44 40 L52 48 L46 64 M50 26 L60 42 L56 52 L64 64" stroke="#ff7a1a" stroke-width="2.6" fill="none"/>
+    <path d="M40 30 C30 10 70 10 60 30" fill="#ff8a2a" opacity=".55"/>${[[18,10],[30,18],[70,14],[82,22],[24,30],[78,32],[56,6],[42,8]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="1.8" fill="#e8d6b4"/>`).join('')}`),
+};
+
+function glyph(vid, s = 1, color = '#000') {
+  const g = {
+    0: `<path d="M0 8 C-6 8 -8 2 -5 -2 C-4 1 -2 1 -2 -1 C-2 -5 1 -7 0 -10 C6 -6 8 0 6 4 C5 7 2 8 0 8Z" fill="${color}"/>`,
+    1: [[-5,-4],[4,-5],[0,1],[-4,6],[5,5],[-7,1]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="1.9" fill="${color}"/>`).join(''),
+    2: `<circle cx="-4" cy="3" r="4" fill="${color}"/><circle cx="4.5" cy="2" r="3.2" fill="${color}"/><circle cx="0" cy="-5" r="2.7" fill="${color}"/>`,
+    3: `<path d="M0 0 a2 2 0 1 1 2 2 a4 4 0 1 1 -4 -4 a6.5 6.5 0 1 1 6.5 6.5" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>`,
+    4: [-5,0,5].map(y => `<path d="M-8 ${y} q2 -3 4 0 t4 0 t4 0 t4 0" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>`).join(''),
+    5: `<path d="M-8 6 L-4 -5 L3 -8 L8 0 L4 7Z" fill="${color}"/>`,
+  }[vid];
+  return `<g transform="scale(${s})">${g}</g>`;
+}
+function tileSVG(v) {
+  return `<svg viewBox="-12 -12 24 24"><defs><radialGradient id="tg${v.id}"><stop offset="0" stop-color="#ffd25a"/><stop offset=".55" stop-color="#ff7a1a"/><stop offset="1" stop-color="#9e1f0a"/></radialGradient></defs>
+    <rect x="-12" y="-12" width="24" height="24" fill="url(#tg${v.id})"/>${glyph(v.id, .85, 'rgba(70,10,2,.75)')}</svg>`;
+}
+function miniMap(b) {
+  let s = `<svg viewBox="0 0 13 13" aria-hidden="true"><rect width="13" height="13" fill="#4b423b"/>`;
+  for (let r = 1; r <= 11; r++) for (let c = 1; c <= 11; c++) {
+    const k = K(c,r); const f = b.cells.includes(k) ? '#9b2d20' : ROAD.has(k) ? '#6f6a64' : '#e3d3b0';
+    s += `<rect x="${c}" y="${r}" width="1" height="1" fill="${f}"/>`;
+  }
+  GATES.forEach(g => s += `<rect x="${g.c}" y="${g.r}" width="1" height="1" fill="#1b120e"/>`);
+  return s + '</svg>';
+}
+
+/* =============== Cards =============== */
+function pips(n) { return `<span class="cpips" aria-label="Holds ${n}">${'<i></i>'.repeat(n)}</span>`; }
+function buildingCard(b, attrs = '', cls = '') {
+  return `<div class="card ${cls}" style="--bc:${b.color}" ${attrs}>
+    <div class="cband"><span class="cnum">${b.roman}</span><span class="ckind">AEDIFICIUM</span>${pips(b.cells.length)}</div>
+    <div class="cart">${ICON[b.icon](b.color)}</div>
+    <div class="cname">${b.name}</div>${b.latin !== b.name ? `<div class="clatin">${b.latin}</div>` : '<div class="clatin">&nbsp;</div>'}
+    <p class="cfact">${b.fact}</p>
+    <div class="cfoot"><span>Shelters ${b.cells.length}</span>${miniMap(b)}</div></div>`;
+}
+function portentCard(p, cls = '') {
+  return `<div class="card pcard ${cls}"><div class="cband"><span class="cnum">☉</span><span class="ckind">PORTENTUM</span></div>
+    <div class="cart">${ICON[p.key]()}</div><div class="cname">${p.title}</div>
+    <p class="cfact" style="font-family:var(--flavor);font-style:italic">${p.flavor}</p>
+    <div class="ceffect"><b>OMEN</b>Cast one rival citizen into the Mountain. Then draw again.</div></div>`;
+}
+function eventCard(e, cls = '') {
+  return `<div class="card ecard ${cls}"><div class="cband"><span class="cnum">AD LXXIX</span><span class="ckind">${e.type === 'tremor' ? 'I' : 'II'}</span></div>
+    <div class="cart">${ICON[e.type]()}</div><div class="cname">${e.title}</div><div class="cdate">${e.date}</div>
+    <p class="cfact" style="font-family:var(--flavor);font-style:italic">${e.flavor}</p>
+    <div class="ceffect"><b>${e.type === 'tremor' ? 'TREMOR' : 'ERUPTION'}</b>${e.effect}</div></div>`;
+}
+function cardHTML(card, cls) {
+  if (card.type === 'building') return buildingCard(BUILD[card.b], '', cls);
+  if (card.type === 'portent') return portentCard(PORTENTS[card.p], cls);
+  return eventCard(card.type === 'tremor' ? TREMOR : ERUPTION, cls);
+}
+
+/* =============== State =============== */
+let S = null, RUN = 0;
+let NET = {mode:'local'};
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const POOL = 9;
+
+function newState(cfg) {
+  const n = cfg.length;
+  const players = cfg.map((c, i) => ({...HOUSES[c.house], hi:c.house, ai:c.ai, remote:!!c.remote, hand:[], escaped:0, lost:0}));
+  const cits = []; let id = 0;
+  players.forEach((p, pi) => {
+    const prae = shuffle(PRAE.slice()), cog = shuffle(COGF.slice());
+    for (let i = 0; i < POOL; i++) cits.push({id:id++, p:pi, state:'home', k:null, name: i % 2 ? `${p.f} ${cog[i]}` : `${prae[i]} ${p.m}`});
+  });
+  const bcards = shuffle([].concat(...BUILD.map(b => [0,1,2].map(() => ({type:'building', b:b.i})))));
+  players.forEach(p => { p.hand = bcards.splice(0, 4); });
+  const nPort = Math.min(6, n + 1);
+  const portents = shuffle(PORTENTS.map((_, i) => ({type:'portent', p:i}))).slice(0, nPort);
+  const mid = shuffle(bcards.splice(0, 7 * n - nPort).concat(portents));
+  const deck = mid.slice(0, 4 * n).concat([{type:'tremor'}], mid.slice(4 * n), [{type:'eruption'}]);
+  const lavaDeck = shuffle([].concat(...VENTS.map(v => Array(7).fill(v.id))));
+  return {players, cits, deck, lavaDeck, lava:new Map(), phase:'place', stirred:false, cur:Math.floor(Math.random()*n), pick:null, tile:null, fresh:null, log:[], over:false};
+}
+
+const citsAt = k => S.cits.filter(c => c.state === 'board' && c.k === k);
+const boardCits = () => S.cits.filter(c => c.state === 'board');
+const homeCount = pi => S.cits.filter(c => c.p === pi && c.state === 'home').length;
+const hn = pi => `<span class="hn" style="--pc:${S.players[pi].light}">${S.players[pi].gens}</span>`;
+const cn = c => `<span class="hn" style="--pc:${S.players[c.p].light}">${c.name}</span>`;
+const placeName = k => CELLB.has(k) ? `the ${CELLB.get(k).name}` : ROAD.has(k) ? 'a paved road' : 'a side street';
+const manh = (a, b) => { const [x1,y1] = P(a), [x2,y2] = P(b); return Math.abs(x1-x2) + Math.abs(y1-y2); };
+function log(html, ev) { S.log.unshift({html, ev}); if (S.log.length > 120) S.log.pop(); }
+
+/* =============== Geometry =============== */
+function distMap(extra) {
+  const L = k => S.lava.has(k) || k === extra; const d = new Map(), q = [];
+  for (const g of GATES) { if (L(g.inner) || d.has(g.inner)) continue; d.set(g.inner, 1); q.push(g.inner); }
+  while (q.length) { const u = q.shift(); const [c,r] = P(u);
+    for (const [dc,dr] of DIRS) { const nc = c+dc, nr = r+dr, nk = K(nc,nr); if (!interior(nc,nr) || L(nk) || d.has(nk)) continue; d.set(nk, d.get(u)+1); q.push(nk); } }
+  return d;
+}
+function reachable(k) {
+  const steps = ROAD.has(k) ? 3 : 2; const seen = new Map([[k,0]]), q = [k], out = new Map();
+  while (q.length) { const u = q.shift(), du = seen.get(u); if (du >= steps) continue; const [c,r] = P(u);
+    for (const [dc,dr] of DIRS) { const nc = c+dc, nr = r+dr, nk = K(nc,nr);
+      if (GATE_BY_KEY.has(nk)) { if (!out.has(nk)) out.set(nk, du+1); continue; }
+      if (!interior(nc,nr) || S.lava.has(nk) || seen.has(nk)) continue;
+      seen.set(nk, du+1); out.set(nk, du+1); q.push(nk); } }
+  return out;
+}
+function legalLava(v) {
+  const mine = [...S.lava].filter(([, id]) => id === v.id).map(([k]) => k);
+  if (!mine.length && !S.lava.has(v.origin)) return [v.origin];
+  const seeds = mine.length ? mine : [v.origin]; const out = new Set();
+  for (const s of seeds) { const [c,r] = P(s); for (const [dc,dr] of DIRS) { const nk = K(c+dc, r+dr); if (interior(c+dc, r+dr) && !S.lava.has(nk)) out.add(nk); } }
+  return [...out];
+}
+function frontier() { const f = new Set(); VENTS.forEach(v => legalLava(v).forEach(k => f.add(k))); return f; }
+function legalPlacement(b) {
+  const free = k => !S.lava.has(k) && !citsAt(k).length;
+  let cells = b.cells.filter(free); if (cells.length) return {cells, overflow:false};
+  cells = BUILD.flatMap(x => x.cells).filter(free); if (cells.length) return {cells, overflow:true};
+  cells = []; for (let r = 1; r <= 11; r++) for (let c = 1; c <= 11; c++) if (free(K(c,r))) cells.push(K(c,r));
+  return {cells, overflow:true};
+}
+function bonusCells() { return legalPlacement({cells:[]}).cells; }
+
+/* =============== Actions =============== */
+function placeCit(pi, k, note) {
+  const c = S.cits.find(x => x.p === pi && x.state === 'home'); if (!c) return;
+  c.state = 'board'; c.k = k; log(`${cn(c)} settles in ${placeName(k)}${note ? ' ' + note : ''}.`);
+}
+function kill(c, how, by) {
+  c.state = 'lost'; S.players[c.p].lost++;
+  const t = {lava:`is swallowed by the lava at ${placeName(c.k)}`, entomb:`is cut off from every gate and entombed`, portent:`is cast into the Mountain by the ${by != null ? S.players[by].gens : 'gods'}`, surge:`is caught in the final surge`}[how];
+  log(`${cn(c)} ${t}.`);
+}
+function entomb() { const d = distMap(); boardCits().filter(c => !d.has(c.k)).forEach(c => kill(c, 'entomb')); }
+function placeLava(k, v, pi) {
+  S.lava.set(k, v.id); S.fresh = k;
+  log(`${hn(pi)} pour ${v.name} lava onto ${placeName(k)}.`);
+  citsAt(k).forEach(c => kill(c, 'lava')); entomb();
+}
+function moveCit(c, dest) {
+  const g = GATE_BY_KEY.get(dest);
+  if (g) { c.state = 'escaped'; c.k = null; S.players[c.p].escaped++; log(`${cn(c)} escapes through the <b>${g.name}</b>.`); }
+  else c.k = dest;
+}
+
+/* =============== Async plumbing =============== */
+function guard(p) { const my = RUN; return p.then(v => my === RUN ? v : new Promise(() => {})); }
+const sleep = ms => guard(new Promise(r => setTimeout(r, REDUCED ? ms * .4 : ms)));
+function pick(spec) {
+  spec.prompt = S.prompt;
+  if (NET.mode === 'host' && S.players[spec.pi].remote) {
+    const seat = spec.pi;
+    return guard(new Promise(res => {
+      NET.pending.set(seat, v => res(spec.kind === 'move' ? (v ? {cit:S.cits.find(c => c.id === v.cid), dest:v.dest} : null) : v));
+      NET.pendingSpec.set(seat, spec);
+      sendTo(seat, {t:'pick', spec:{kind:spec.kind, pi:seat, cells:[...spec.cells], discard:!!spec.discard, moved:spec.moved ? [...spec.moved] : [], prompt:spec.prompt}});
+      setPrompt(`Waiting for the ${hn(seat)}…`); render();
+    }));
+  }
+  return guard(new Promise(res => { S.pick = {...spec, resolve: v => { S.pick = null; res(v); render(); }}; render(); }));
+}
+function setPrompt(html) { S.prompt = html; renderPrompt(); }
+function showModal(html, btnLabel = 'Continue', extra) {
+  return guard(new Promise(res => {
+    const m = document.getElementById('modal'); m.innerHTML = html + (btnLabel ? `<button class="btn primary" id="mOk">${btnLabel}</button>` : '');
+    m.hidden = false; const ok = document.getElementById('mOk');
+    if (extra) extra(m, v => { m.hidden = true; res(v); });
+    if (ok) { ok.focus(); ok.onclick = () => { m.hidden = true; m.innerHTML = ''; res(true); }; }
+  }));
+}
+function showCard(card, pi) {
+  const html = `<div class="mbox cardbox">${cardHTML(card, 'big')}<div class="drawnby">Drawn by the ${hn(pi)}</div>`;
+  if (NET.mode === 'host') {
+    flushBroadcast();
+    for (const [, conn] of NET.conns) conn.send({t:'card', html, pi});
+    if (S.players[pi].remote) { showLocalCard(html, 'Close'); return guard(new Promise(res => NET.acks.set(pi, res))); }
+  }
+  return showModal(html, 'Continue');
+}
+function showLocalCard(html, label, cb) {
+  const m = document.getElementById('modal');
+  m.innerHTML = html + `<button class="btn primary" id="mOk2">${label}</button></div>`; m.hidden = false;
+  document.getElementById('mOk2').onclick = () => { m.hidden = true; m.innerHTML = ''; if (cb) cb(); };
+}
+
+/* =============== Game loop =============== */
+async function gameLoop() {
+  const n = S.players.length; let lastHuman = -1;
+  const humans = S.players.filter(p => !p.ai).length;
+  log(`The households of Pompeii go about an ordinary day. The ${S.players[S.cur].gens} move first.`, true); render();
+  while (!S.over) {
+    const pi = S.cur, p = S.players[pi];
+    if (NET.mode === 'local' && !p.ai && humans > 1 && lastHuman !== pi) {
+      S.handoff = true; render();
+      await showModal(`<div class="mbox"><h2>Pass to the ${p.gens}</h2><p>Hand the device to the player of the ${hn(pi)}. Other players look away.</p>`, `I am the ${p.gens}`);
+      S.handoff = false; lastHuman = pi;
+    }
+    if (p.ai) setPrompt(`The ${hn(pi)} are deciding…`);
+    if (S.phase === 'place') await placeTurn(pi);
+    else await flightTurn(pi);
+    render();
+    if (S.phase === 'flight' && (!boardCits().length || !S.lavaDeck.length)) {
+      if (boardCits().length) { log('The last of the lava pours over the city.', true); boardCits().forEach(c => kill(c, 'surge')); }
+      S.over = true;
+    }
+    S.cur = (S.cur + 1) % n;
+  }
+  S.phase = 'over'; render(); gameOver();
+}
+
+async function placeTurn(pi) {
+  const p = S.players[pi]; const home = homeCount(pi); let choice;
+  if (p.ai) { await sleep(750); choice = aiPlacement(pi); }
+  else {
+    setPrompt(home ? `Your turn. Tap a card, then a <b>glowing square</b> in that building to place a citizen.` : `Your whole household is in the city. Tap a card to discard it.`);
+    choice = await pick({kind:'place', pi, sel:null, cells:new Set(), discard:!home});
+  }
+  const card = p.hand.splice(choice.idx, 1)[0], b = BUILD[card.b];
+  if (choice.k == null) log(`${hn(pi)} discard the ${b.name}.`);
+  else {
+    const own = b.cells.includes(choice.k);
+    const occ = own ? b.cells.filter(x => citsAt(x).length).length : 0;
+    placeCit(pi, choice.k, own ? '' : `(the ${b.name} was full)`);
+    const bonus = Math.min(occ, 2, homeCount(pi));
+    if (bonus > 0) log(`Kinship: relatives in the ${b.name} take in ${bonus} more of the ${hn(pi)}.`);
+    render();
+    for (let i = 0; i < bonus; i++) {
+      const cells = bonusCells(); if (!cells.length) break; let k;
+      if (p.ai) { await sleep(450); k = aiBestCell(cells, pi); }
+      else { setPrompt(`<b>Kinship!</b> Your citizen found relatives in the ${b.name}. Place ${bonus - i} more on any glowing building square.`); k = await pick({kind:'cell', pi, cells:new Set(cells)}); }
+      placeCit(pi, k, '(kinship)'); render();
+    }
+  }
+  while (S.deck.length) {
+    const c = S.deck.shift();
+    if (c.type === 'building') { p.hand.push(c); break; }
+    if (c.type === 'portent') {
+      await showCard(c, pi);
+      const targets = boardCits().filter(x => x.p !== pi);
+      if (!targets.length) { log(`${PORTENTS[c.p].title}: no rival is in the city to suffer it.`, true); continue; }
+      let k;
+      if (p.ai) { await sleep(500); k = aiPortent(pi, targets).k; }
+      else { setPrompt(`<b>${PORTENTS[c.p].title}.</b> Tap a rival citizen to cast into the Mountain.`); k = await pick({kind:'cell', pi, cells:new Set(targets.map(x => x.k))}); }
+      kill(citsAt(k).find(x => x.p !== pi), 'portent', pi); render(); continue;
+    }
+    if (c.type === 'tremor') {
+      await showCard(c, pi); S.stirred = true; log('AD 79. The mountain splits open.', true); render();
+      for (let j = 0; j < S.players.length; j++) await lavaStep((pi + j) % S.players.length);
+      continue;
+    }
+    if (c.type === 'eruption') {
+      await showCard(c, pi); S.phase = 'flight'; S.players.forEach(x => x.hand = []);
+      log('Night falls under the ash. The flight from Pompeii begins.', true); return;
+    }
+  }
+}
+
+async function lavaStep(pi) {
+  const p = S.players[pi]; if (!S.lavaDeck.length) return;
+  const v = VENTS[S.lavaDeck.shift()]; S.tile = {v, pi}; render();
+  const cells = legalLava(v);
+  if (!cells.length) { log(`The ${v.name} flow is walled in. Its tile is set aside.`); await sleep(600); S.tile = null; return; }
+  let k;
+  if (p.ai) { setPrompt(`The ${hn(pi)} drew a <b>${v.name}</b> tile.`); await sleep(800); k = aiLava(pi, v, cells); }
+  else { setPrompt(`You drew <b>${v.name}</b> (${v.gloss}). Place it on a glowing square${S.lava.size && [...S.lava.values()].includes(v.id) ? `, touching the ${v.name} flow` : ` over its crater`}.`); k = await pick({kind:'cell', pi, cells:new Set(cells)}); }
+  placeLava(k, v, pi); S.tile = null; render(); await sleep(300);
+}
+
+async function flightTurn(pi) {
+  const p = S.players[pi];
+  if (!S.lavaDeck.length) return;
+  await lavaStep(pi);
+  if (S.players.length === 2 && S.lavaDeck.length && boardCits().length) await lavaStep(pi);
+  if (!boardCits().length) return;
+  const mine = () => boardCits().filter(c => c.p === pi);
+  if (!mine().length) { log(`${hn(pi)} have no one left in the city, but the mountain answers to them still.`); await sleep(300); return; }
+  const moved = new Set();
+  for (let m = 0; m < 2; m++) {
+    if (!mine().some(c => !moved.has(c.id))) break; let mv;
+    if (p.ai) { await sleep(650); mv = aiMove(pi, moved); if (!mv) break; }
+    else {
+      setPrompt(`${m === 0 ? 'Move up to two citizens.' : 'Move one more citizen, or end your turn.'} Tap one of yours, then a glowing square. Paved roads let a citizen run 3 squares, side streets 2.`);
+      mv = await pick({kind:'move', pi, moved, sel:null, cells:new Set()}); if (!mv) break;
+    }
+    moveCit(mv.cit, mv.dest); moved.add(mv.cit.id); render();
+  }
+}
+
+/* =============== AI =============== */
+function threatAt(k, front) { let m = 99; for (const f of front) m = Math.min(m, manh(k, f)); return Math.max(0, 4 - m) + (front.has(k) ? 3 : 0); }
+function ventNear(k) { let t = 0; VENTS.forEach(v => t += Math.max(0, 3 - manh(k, v.origin))); return t; }
+function cellScore(k, d) { return 12 - (d.get(k) ?? 15) * 1.2 + (ROAD.has(k) ? .6 : 0) - ventNear(k) * 1.4 + Math.random(); }
+function aiPlacement(pi) {
+  const p = S.players[pi], d = distMap(), home = homeCount(pi); let best = null;
+  p.hand.forEach((card, idx) => {
+    const b = BUILD[card.b];
+    if (!home) { const sc = Math.random(); if (!best || sc > best.sc) best = {sc, idx, k:null}; return; }
+    const L = legalPlacement(b), occ = b.cells.filter(x => citsAt(x).length).length;
+    for (const k of L.cells) { let sc = cellScore(k, d); if (!L.overflow) sc += Math.min(occ, 2, home - 1) * 3.2; if (!best || sc > best.sc) best = {sc, idx, k}; }
+  });
+  return best;
+}
+function aiBestCell(cells, pi) { const d = distMap(); let best = null; for (const k of cells) { const sc = cellScore(k, d); if (!best || sc > best.sc) best = {sc, k}; } return best.k; }
+function aiPortent(pi, targets) {
+  const d = distMap(); let best = null;
+  for (const c of targets) { const o = S.players[c.p]; const strength = o.escaped + boardCits().filter(x => x.p === c.p).length;
+    const sc = 15 - (d.get(c.k) ?? 15) + strength * .5 + Math.random() * 2; if (!best || sc > best.sc) best = {sc, k:c.k}; }
+  return best;
+}
+function aiLava(pi, v, cells) {
+  const base = distMap(), bc = boardCits(); let best = null;
+  for (const k of cells) {
+    let sc = Math.random() * .8; const d2 = distMap(k);
+    for (const c of bc) { const w = c.p !== pi ? 1 : -1.4;
+      if (c.k === k) { sc += w * 10; continue; }
+      if (!d2.has(c.k)) { sc += w * 8; continue; }
+      sc += w * (d2.get(c.k) - (base.get(c.k) ?? d2.get(c.k))) * 1.5;
+      const m = manh(c.k, k); if (m <= 2) sc += w * (3 - m) * .8; }
+    if (!best || sc > best.sc) best = {sc, k};
+  }
+  return best.k;
+}
+function aiMove(pi, moved) {
+  const d = distMap(), front = frontier(); let best = null;
+  for (const c of boardCits().filter(c => c.p === pi && !moved.has(c.id))) {
+    const here = d.get(c.k) ?? 99, thr = threatAt(c.k, front);
+    for (const [dest] of reachable(c.k)) {
+      let sc;
+      if (GATE_BY_KEY.has(dest)) sc = 100 + thr * 3;
+      else sc = (here - (d.get(dest) ?? 99)) * 3 + thr * 2 - threatAt(dest, front) * 2.5 + (ROAD.has(dest) ? .8 : 0);
+      sc += Math.random() * .3;
+      if (!best || sc > best.sc) best = {sc, cit:c, dest};
+    }
+  }
+  return best && best.sc > .5 ? best : null;
+}
+
+/* =============== Rendering =============== */
+function hash(c, r) { return ((c * 73856093) ^ (r * 19349663)) >>> 0; }
+function pawn(x, y, s, color) {
+  return `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cx="0" cy="9.5" rx="6.5" ry="1.8" fill="rgba(0,0,0,.35)"/><path d="M-6.5 9 Q-6.5 -2 0 -2 Q6.5 -2 6.5 9Z" fill="${color}" stroke="#120b08" stroke-width="1.3"/><circle cx="0" cy="-6.5" r="4.6" fill="${color}" stroke="#120b08" stroke-width="1.3"/><circle cx="-1.5" cy="-8" r="1.4" fill="rgba(255,255,255,.55)"/></g>`;
+}
+const SPOTS = {1:[[0,0]], 2:[[-7,1],[7,1]], 3:[[-8,4],[8,4],[0,-5]], 4:[[-7,-5],[7,-5],[-7,6],[7,6]]};
+const SCALE = {1:1.05, 2:.82, 3:.72, 4:.62};
+
+/* ---- Static scenery (countryside, trees), generated once ---- */
+function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+const ROADS_OUT = GATES.map(g => {
+  const cx = g.c * CS + 20, cy = g.r * CS + 20;
+  if (g.r === 0) return `M${cx} ${cy} C${cx} -20 ${cx - 30} -40 ${cx - 40} -70`;
+  if (g.r === 12) return `M${cx} ${cy} C${cx} 540 ${cx + 20} 560 ${cx + 30} 590`;
+  if (g.c === 0) return `M${cx} ${cy} C-20 ${cy} -30 ${cy + 10} -45 ${cy + 14}`;
+  return `M${cx} ${cy} C540 ${cy} 560 ${cy - 20} 590 ${cy - 30}`;
+});
+const SCENERY = (() => {
+  const R = rng(79); let s = '';
+  // fields and vineyards
+  const fields = [[-62,90,48,90,-4],[548,40,40,110,6],[540,250,46,80,-3],[110,532,120,48,3],[330,535,120,45,-5],[200,-62,140,42,2],[-60,380,44,100,4],[380,-60,120,44,-2]];
+  fields.forEach(([x,y,w,h,a], i) => {
+    s += `<g transform="rotate(${a} ${x + w/2} ${y + h/2})"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${i % 2 ? '#a7b862' : '#8fa955'}" stroke="#7a9446" stroke-width="1"/>`;
+    const vert = h > w; for (let t = 6; t < (vert ? w : h); t += 6) s += vert ? `<path d="M${x + t} ${y + 4} v${h - 8}" stroke="#6f8a3e" stroke-width="2" stroke-dasharray="3 2"/>` : `<path d="M${x + 4} ${y + t} h${w - 8}" stroke="#6f8a3e" stroke-width="2" stroke-dasharray="3 2"/>`;
+    s += '</g>';
+  });
+  // trees: cypresses and umbrella pines in the margin, avoiding gate roads
+  const nearRoad = (x, y) => GATES.some(g => { const gx = g.c*CS+20, gy = g.r*CS+20; return (g.r === 0 || g.r === 12) ? Math.abs(x - gx) < 30 && Math.abs(y - gy) < 110 : Math.abs(y - gy) < 30 && Math.abs(x - gx) < 110; });
+  for (let i = 0; i < 260; i++) {
+    const x = -66 + R() * 652, y = -66 + R() * 652;
+    if (x > -6 && x < 526 && y > -6 && y < 526) continue;
+    if (x < -30 && y > 150 && y < 380) continue; // coast
+    if (x < 10 && y < 10) continue;              // mountain corner
+    if (nearRoad(x, y)) continue;
+    if (R() < .5) s += `<ellipse cx="${x + 2}" cy="${y + 5}" rx="3" ry="2" fill="rgba(0,0,0,.25)"/><ellipse cx="${x}" cy="${y}" rx="2.6" ry="7" fill="#2f5a34" stroke="#1f3f24" stroke-width=".7"/>`;
+    else { const r = 4 + R() * 3; s += `<circle cx="${x + 2}" cy="${y + 3}" r="${r}" fill="rgba(0,0,0,.22)"/><circle cx="${x}" cy="${y}" r="${r}" fill="#4f7a3a" stroke="#355a28" stroke-width=".8"/><circle cx="${x - r/3}" cy="${y - r/3}" r="${r/2.2}" fill="#6a9550"/>`; }
+  }
+  return s;
+})();
+
+/* ---- Building art, drawn top-down inside each building's own squares ---- */
+function bbox(b) { const ps = b.cells.map(P); const xs = ps.map(p => p[0]), ys = ps.map(p => p[1]);
+  const x0 = Math.min(...xs) * CS, y0 = Math.min(...ys) * CS; return {x:x0, y:y0, w:(Math.max(...xs) + 1) * CS - x0, h:(Math.max(...ys) + 1) * CS - y0}; }
+function colonnade(x, y, w, h, step = 6) { let s = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="rgba(60,40,20,.45)" stroke-width="1"/>`;
+  for (let t = 0; t <= w; t += step) s += `<circle cx="${x + t}" cy="${y}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/><circle cx="${x + t}" cy="${y + h}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/>`;
+  for (let t = step; t < h; t += step) s += `<circle cx="${x}" cy="${y + t}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/><circle cx="${x + w}" cy="${y + t}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/>`;
+  return s; }
+function roof(x, y, w, h, c, alongX = w >= h) {
+  return `<rect x="${x + 2}" y="${y + 2.5}" width="${w}" height="${h}" fill="rgba(0,0,0,.28)"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}" stroke="#4a2a18" stroke-width=".9"/>` +
+    (alongX ? `<rect x="${x}" y="${y}" width="${w}" height="${h/2}" fill="rgba(255,255,255,.13)"/><path d="M${x} ${y + h/2} h${w}" stroke="#4a2a18" stroke-width=".9"/>`
+            : `<rect x="${x}" y="${y}" width="${w/2}" height="${h}" fill="rgba(255,255,255,.13)"/><path d="M${x + w/2} ${y} v${h}" stroke="#4a2a18" stroke-width=".9"/>`);
+}
+function buildingArt(b) {
+  const {x, y, w, h} = bbox(b), c = b.color, T = '#b8603b';
+  const cx = x + w/2, cy = y + h/2; let s = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#e7dcc4"/>`;
+  switch (b.icon) {
+    case 'forum':
+      s += `<rect x="${x+6}" y="${y+6}" width="${w-12}" height="${h-12}" fill="#efe6d2"/>${colonnade(x+6, y+6, w-12, h-12, 6.8)}${roof(cx-10, y+10, 20, 24, c, false)}<path d="M${cx-10} ${y+34} h20 v4 h-20Z" fill="#d8ccb2" stroke="#6b5a45" stroke-width=".6"/>`;
+      [[x+20,y+56],[x+60,y+56],[x+40,y+66]].forEach(([a,bq]) => s += `<rect x="${a-2}" y="${bq-2}" width="4" height="4" fill="#bdb09a"/>`); break;
+    case 'temple': case 'isis': {
+      s += `<rect x="${x+4}" y="${y+4}" width="${w-8}" height="${h-8}" fill="#ece2cc"/>${colonnade(x+4, y+4, w-8, h-8, 6)}`;
+      const vert = h > w, tw = vert ? 18 : 30, th = vert ? 30 : 18;
+      s += roof(cx - tw/2, cy - th/2, tw, th, c, !vert) + `<circle cx="${vert ? cx : cx + 22}" cy="${vert ? cy + 26 : cy}" r="3" fill="#a69a86" stroke="#6b5a45" stroke-width=".6"/>`; break; }
+    case 'basilica':
+      s += roof(x+5, y+7, w-10, h-14, c, true) + `<rect x="${x+20}" y="${y+14}" width="${w-40}" height="${h-28}" fill="rgba(255,255,255,.18)" stroke="#4a2a18" stroke-width=".6"/>`; break;
+    case 'baths':
+      b.cells.forEach((k, i) => { const [a, bq] = P(k), X = a*CS, Y = bq*CS;
+        if (i === 2) s += `<rect x="${X+5}" y="${Y+5}" width="30" height="30" fill="#9cbf72"/><rect x="${X+10}" y="${Y+12}" width="20" height="14" fill="#7fb7c8" stroke="#4d8191" stroke-width=".8"/>`;
+        else s += roof(X+4, Y+4, 32, 32, c) + `<circle cx="${X+20}" cy="${Y+20}" r="9" fill="${c}" stroke="#4a2a18" stroke-width=".9"/><circle cx="${X+17}" cy="${Y+17}" r="4" fill="rgba(255,255,255,.35)"/><circle cx="${X+20}" cy="${Y+20}" r="1.8" fill="#3b2c22"/>`; }); break;
+    case 'faun': case 'vettii':
+      b.cells.forEach((k, i) => { const [a, bq] = P(k), X = a*CS, Y = bq*CS;
+        if (i === b.cells.length - 1) s += `<rect x="${X+3}" y="${Y+3}" width="34" height="34" fill="#93b86a"/>${colonnade(X+6, Y+6, 28, 28, 5.6)}<circle cx="${X+20}" cy="${Y+20}" r="3.5" fill="#7fb7c8" stroke="#4d8191" stroke-width=".7"/>`;
+        else s += `<rect x="${X+5}" y="${Y+5.5}" width="32" height="32" fill="rgba(0,0,0,.28)"/><path d="M${X+3} ${Y+3} h34 v34 h-34Z M${X+14} ${Y+14} v12 h12 v-12Z" fill="${T}" fill-rule="evenodd" stroke="#4a2a18" stroke-width=".9"/><rect x="${X+16}" y="${Y+16}" width="8" height="8" fill="#7fb7c8"/><rect x="${X+3}" y="${Y+3}" width="34" height="34" fill="none" stroke="${c}" stroke-width="2.5"/>`; });
+      if (b.icon === 'faun') { const [a, bq] = P(b.cells[0]); s += `<circle cx="${a*CS+20}" cy="${bq*CS+20}" r="1.6" fill="#8a6a2c"/>`; } break;
+    case 'theatre':
+      for (let r = 52, i = 0; r >= 18; r -= 8, i++) s += `<path d="M${cx - r} ${y + h - 6} A${r} ${r * .62} 0 0 1 ${cx + r} ${y + h - 6}Z" fill="${i % 2 ? c : '#e3cfa6'}" stroke="#5a3f2c" stroke-width=".7"/>`;
+      s += `<rect x="${cx - 40}" y="${y + h - 8}" width="80" height="6" fill="#bfae93" stroke="#5a3f2c" stroke-width=".7"/>`; break;
+    case 'amphi':
+      s += `<ellipse cx="${cx + 2}" cy="${cy + 3}" rx="${w/2 - 2}" ry="${h/2 - 4}" fill="rgba(0,0,0,.28)"/><ellipse cx="${cx}" cy="${cy}" rx="${w/2 - 2}" ry="${h/2 - 4}" fill="${c}" stroke="#4a2a18"/>` +
+        `<ellipse cx="${cx}" cy="${cy}" rx="${w/2 - 7}" ry="${h/2 - 14}" fill="#c99d6f" stroke="#6b4a30" stroke-width=".6"/><ellipse cx="${cx}" cy="${cy}" rx="${w/2 - 12}" ry="${h/2 - 30}" fill="#ead6a8" stroke="#4a2a18"/>`; break;
+    case 'macellum':
+      s += `<rect x="${x+4}" y="${y+4}" width="${w-8}" height="${h-8}" fill="#ece2cc"/>${roof(x+4, y+4, w-8, 10, T)}${roof(x+4, y+h-14, w-8, 10, T)}<circle cx="${cx}" cy="${cy}" r="9" fill="${c}" stroke="#4a2a18"/>${[0,60,120,180,240,300].map(a => `<circle cx="${(cx + Math.cos(a*Math.PI/180)*9).toFixed(1)}" cy="${(cy + Math.sin(a*Math.PI/180)*9).toFixed(1)}" r="1.3" fill="#f6efe0" stroke="#6b5a45" stroke-width=".5"/>`).join('')}`; break;
+    case 'bakery':
+      s += roof(x+3, y+3, 34, 15, T) + `<circle cx="${x+12}" cy="${y+29}" r="5" fill="#6e6863" stroke="#3b3632"/><circle cx="${x+12}" cy="${y+29}" r="1.5" fill="#3b3632"/><circle cx="${x+28}" cy="${y+29}" r="6.5" fill="${c}" stroke="#4a2a18"/><path d="M${x+21.5} ${y+29} h13 M${x+28} ${y+22.5} v13" stroke="#4a2a18" stroke-width=".7"/>`; break;
+    case 'fullery':
+      s += roof(x+3, y+3, w-6, 16, T) + [y+32, y+48, y+64].map(v => `<circle cx="${cx}" cy="${v}" r="6" fill="#bcd2d8" stroke="#4a5a60" stroke-width="1.2"/>`).join('') + `<rect x="${x+3}" y="${y+22}" width="${w-6}" height="${h-25}" fill="none" stroke="${c}" stroke-width="2.5"/>`; break;
+  }
+  return s;
+}
+function insula(c, r) {
+  const x = c*CS, y = r*CS, h = hash(c, r), roofC = ['#c0643a', '#b5583a', '#c9774b', '#ad5a3c'][h % 4];
+  let s = `<rect x="${x}" y="${y}" width="40" height="40" fill="#dccca6"/>`;
+  switch (h % 5) {
+    case 0: s += `<rect x="${x+5}" y="${y+5.5}" width="32" height="32" fill="rgba(0,0,0,.25)"/><path d="M${x+3} ${y+3} h34 v34 h-34Z M${x+14} ${y+14} v12 h12 v-12Z" fill="${roofC}" fill-rule="evenodd" stroke="#4a2a18" stroke-width=".8"/><rect x="${x+16}" y="${y+16}" width="8" height="8" fill="#7fb7c8"/>`; break;
+    case 1: s += roof(x+3, y+3, 34, 15, roofC) + roof(x+3, y+22, 34, 15, ['#c9774b','#b5583a'][h % 2]); break;
+    case 2: s += roof(x+3, y+3, 17, 34, roofC, false) + `<rect x="${x+22}" y="${y+3}" width="15" height="34" fill="#9cbf72"/><circle cx="${x+29}" cy="${y+12}" r="4" fill="#5d8a45"/><circle cx="${x+30}" cy="${y+28}" r="3.5" fill="#5d8a45"/>`; break;
+    case 3: s += roof(x+3, y+3, 34, 20, roofC) + `<rect x="${x+3}" y="${y+26}" width="34" height="11" fill="#9cbf72"/><path d="M${x+6} ${y+31} h28" stroke="#6f9a52" stroke-width="2" stroke-dasharray="2 2"/>`; break;
+    default: s += roof(x+3, y+3, 34, 34, roofC) + `<rect x="${x+12}" y="${y+12}" width="16" height="16" fill="#e7dcc4" stroke="#4a2a18" stroke-width=".8"/><circle cx="${x+20}" cy="${y+20}" r="3" fill="#7fb7c8"/>`;
+  }
+  return s;
+}
+
+function renderBoard() {
+  const svg = document.getElementById('board'); let s = '';
+  s += `<defs><pattern id="basalt" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#575049"/>
+    <path d="M0 0 L9 1 L8 9 L0 8Z M10 0 L20 2 L19 10 L9 9Z M0 9 L8 10 L10 20 L0 19Z M9 10 L19 11 L20 20 L11 20Z" fill="#67605a" stroke="#433d38" stroke-width=".8"/></pattern>
+    <radialGradient id="lavaG"><stop offset="0" stop-color="#ffd25a"/><stop offset=".5" stop-color="#ff7a1a"/><stop offset="1" stop-color="#a3220b"/></radialGradient>
+    <linearGradient id="sea" x1="0" x2="1"><stop offset="0" stop-color="#3f7690"/><stop offset="1" stop-color="#6aa0b3"/></linearGradient></defs>`;
+  // countryside
+  s += `<rect x="-70" y="-70" width="660" height="660" fill="#9db763"/>`;
+  s += `<path d="M-70 120 C-50 160 -44 220 -40 270 C-38 320 -48 370 -70 420Z" fill="#dcc995"/><path d="M-70 135 C-56 170 -52 220 -50 270 C-49 315 -56 360 -70 405Z" fill="url(#sea)"/>`;
+  s += `<path d="M-64 136 q-3 6 0 12 M-60 210 q-3 6 0 12 M-62 300 q-3 6 0 12 M-66 360 q-2 5 0 10" stroke="#cfe6ee" stroke-width="1.2" fill="none" opacity=".7"/>`;
+  s += `<path d="M-70 40 L-70 -70 L60 -70 C30 -60 10 -40 -6 -32 C-24 -22 -40 -10 -70 40Z" fill="#7d6d5f" stroke="#5b4d42"/><path d="M-70 -20 C-50 -36 -30 -48 -10 -58 L20 -70 L-70 -70Z" fill="#665649"/><path d="M-40 -58 C-44 -64 -38 -68 -42 -70" stroke="#b8aea6" stroke-width="5" fill="none" opacity=".8"/>`;
+  s += `<text x="-62" y="-50" font-family="Cinzel, serif" font-weight="700" font-size="9" fill="#f2e6cc" letter-spacing="1">VESUVIUS</text>`;
+  s += SCENERY;
+  ROADS_OUT.forEach(d => s += `<path d="${d}" stroke="#a89466" stroke-width="16" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#d8c497" stroke-width="12" fill="none" stroke-linecap="round"/>`);
+  // city ground inside the wall
+  s += `<rect x="22" y="22" width="476" height="476" fill="#d8c79f"/>`;
+  for (let r = 1; r <= 11; r++) for (let c = 1; c <= 11; c++) {
+    const k = K(c, r), x = c*CS, y = r*CS;
+    if (ROAD.has(k)) {
+      s += `<rect x="${x}" y="${y}" width="40" height="40" fill="url(#basalt)"/>`;
+      const hz = r === 3 || r === 7, vt = c === 2 || c === 6 || c === 10;
+      if (hz && !vt) s += `<path d="M${x} ${y+2} h40 M${x} ${y+38} h40" stroke="#e3d6b8" stroke-width="3"/>`;
+      if (vt && !hz) s += `<path d="M${x+2} ${y} v40 M${x+38} ${y} v40" stroke="#e3d6b8" stroke-width="3"/>`;
+      const h = hash(c, r) % 4;
+      if (h === 0 && hz !== vt) s += hz ? `<g fill="#e8ddc6" stroke="#8a7d68" stroke-width=".6"><ellipse cx="${x+20}" cy="${y+11}" rx="5" ry="3.4"/><ellipse cx="${x+20}" cy="${y+20}" rx="5" ry="3.4"/><ellipse cx="${x+20}" cy="${y+29}" rx="5" ry="3.4"/></g>` : `<g fill="#e8ddc6" stroke="#8a7d68" stroke-width=".6"><ellipse cx="${x+11}" cy="${y+20}" rx="3.4" ry="5"/><ellipse cx="${x+20}" cy="${y+20}" rx="3.4" ry="5"/><ellipse cx="${x+29}" cy="${y+20}" rx="3.4" ry="5"/></g>`;
+      if (h === 1 && hz !== vt) s += `<rect x="${x+15}" y="${y+15}" width="10" height="10" fill="#c9bda4" stroke="#6b5a45" stroke-width=".7"/><circle cx="${x+20}" cy="${y+20}" r="2.6" fill="#7fb7c8"/>`;
+    } else if (!CELLB.has(k)) s += insula(c, r);
+  }
+  BUILD.forEach(b => {
+    s += `<clipPath id="cl${b.i}">${b.cells.map(k => { const [c, r] = P(k); return `<rect x="${c*CS}" y="${r*CS}" width="40" height="40"/>`; }).join('')}</clipPath>`;
+    s += `<g clip-path="url(#cl${b.i})">${buildingArt(b)}</g>`;
+    b.cells.forEach(k => { const [c, r] = P(k), x = c*CS, y = r*CS; const e = (dc, dr) => CELLB.get(K(c+dc, r+dr)) !== b;
+      if (e(0,-1)) s += `<path d="M${x} ${y} h40" stroke="#3a2416" stroke-width="2.4"/>`;
+      if (e(0,1)) s += `<path d="M${x} ${y+40} h40" stroke="#3a2416" stroke-width="2.4"/>`;
+      if (e(-1,0)) s += `<path d="M${x} ${y} v40" stroke="#3a2416" stroke-width="2.4"/>`;
+      if (e(1,0)) s += `<path d="M${x+40} ${y} v40" stroke="#3a2416" stroke-width="2.4"/>`; });
+  });
+  // faint square grid so every space reads clearly
+  for (let i = 1; i <= 12; i++) s += `<path d="M${i*CS} 40 V480 M40 ${i*CS} H480" stroke="rgba(50,30,15,.22)" stroke-width=".8"/>`;
+  BUILD.forEach(b => { const [c, r] = P(b.cells[0]), x = c*CS, y = r*CS, w = b.roman.length * 6 + 7;
+    s += `<rect x="${x+2}" y="${y+2}" width="${w}" height="12" rx="2" fill="#f6efe0" stroke="#3a2416" stroke-width=".8"/><text x="${x+2+w/2}" y="${y+11.3}" text-anchor="middle" font-family="Cinzel, serif" font-weight="900" font-size="9" fill="#3a2416">${b.roman}</text>`; });
+  // city wall with towers
+  s += `<rect x="22" y="22" width="476" height="476" fill="none" stroke="#5b5046" stroke-width="18"/><rect x="22" y="22" width="476" height="476" fill="none" stroke="#e6dccb" stroke-width="13"/><rect x="22" y="22" width="476" height="476" fill="none" stroke="#b9ad99" stroke-width="1" stroke-dasharray="5 3"/>`;
+  const towers = [[1,0],[4,0],[8,0],[11,0],[0,2],[0,5],[0,10],[12,1],[12,5],[12,9],[12,11],[1,12],[3,12],[8,12],[12,12],[0,0],[12,0],[0,12]];
+  towers.forEach(([c, r]) => { const x = Math.min(Math.max(c*CS+20, 22), 498), y = Math.min(Math.max(r*CS+20, 22), 498);
+    s += `<rect x="${x-10}" y="${y-8}" width="22" height="22" fill="rgba(0,0,0,.25)"/><rect x="${x-11}" y="${y-11}" width="22" height="22" fill="#efe7d8" stroke="#5b5046" stroke-width="1.2"/><rect x="${x-7}" y="${y-7}" width="14" height="14" fill="#b8603b" stroke="#4a2a18" stroke-width=".8"/><path d="M${x-7} ${y} h14" stroke="#4a2a18" stroke-width=".8"/>`; });
+  // gates
+  GATES.forEach(g => { const x = g.c*CS, y = g.r*CS, blocked = S.lava.has(g.inner), cx = x + 20, cy = y + 20;
+    s += `<g transform="rotate(${g.rot} ${cx} ${cy})">
+      <rect x="${x+2}" y="${y+12}" width="12" height="20" fill="#efe7d8" stroke="#5b5046" stroke-width="1.2"/><rect x="${x+26}" y="${y+12}" width="12" height="20" fill="#efe7d8" stroke="#5b5046" stroke-width="1.2"/>
+      <rect x="${x+4}" y="${y+14}" width="8" height="8" fill="#b8603b"/><rect x="${x+28}" y="${y+14}" width="8" height="8" fill="#b8603b"/>
+      <rect x="${x+14}" y="${y+8}" width="12" height="32" fill="${blocked ? '#8a1a08' : '#cbb88f'}" stroke="#5b5046" stroke-width="1"/>
+      <path d="M${x+14} ${y+20} h12" stroke="#5b5046" stroke-width="1"/></g>`;
+    const tx = g.c === 0 ? -10 : g.c === 12 ? 530 : cx, ty = g.r === 0 ? -8 : g.r === 12 ? 535 : cy, tr = g.c === 0 ? -90 : g.c === 12 ? 90 : 0;
+    s += `<text x="${tx}" y="${ty}" transform="rotate(${tr} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle" font-family="Cinzel, serif" font-weight="700" font-size="9" fill="#2a1b12" stroke="#f2e6cc" stroke-width="2.6" paint-order="stroke" letter-spacing=".6">${g.name.toUpperCase()}</text>`; });
+  // compass
+  s += `<g transform="translate(565 -45)"><circle r="15" fill="rgba(242,230,204,.85)" stroke="#5b4d42"/><path d="M0 -12 L4 2 L0 0 L-4 2Z" fill="#9b2d20"/><path d="M0 12 L4 -2 L0 0 L-4 -2Z" fill="#5b4d42"/><text y="-17" text-anchor="middle" font-family="Cinzel, serif" font-size="8" font-weight="700" fill="#2a1b12">N</text></g>`;
+  // vents (uncovered craters)
+  VENTS.forEach(v => { if (S.lava.has(v.origin)) return; const [c, r] = P(v.origin), x = c*CS+20, y = r*CS+20;
+    s += `<path d="M${x-18} ${y+6} l6 -3 l4 4 l3 -5 M${x+18} ${y-6} l-6 2 l-3 -4 l-4 5" stroke="#3a1a10" stroke-width="1.5" fill="none"/><circle cx="${x}" cy="${y}" r="12" fill="#24130e" stroke="${v.color}" stroke-width="2.2"/><g transform="translate(${x} ${y})">${glyph(v.id, .8, v.color)}</g>`; });
+  // lava
+  for (const [k, vid] of S.lava) { const [c, r] = P(k), x = c*CS, y = r*CS, h = hash(c, r);
+    s += `<rect x="${x}" y="${y}" width="40" height="40" fill="url(#lavaG)"/><path d="M${x+3} ${y+8+h%9} l9 3 l5 -4 l8 6 M${x+22} ${y+30-h%7} l7 -3 l8 4" stroke="#7a1606" stroke-width="1.6" fill="none" opacity=".7"/>
+      <g transform="translate(${x+20} ${y+20})">${glyph(vid, .95, 'rgba(80,12,2,.72)')}</g>`;
+    if (!REDUCED) s += `<rect class="glow" x="${x}" y="${y}" width="40" height="40" fill="#ffe08a" style="animation-delay:-${(h%16)/10}s"/>`;
+    if (k === S.fresh) s += `<rect class="fresh" x="${x}" y="${y}" width="40" height="40" fill="#fff6c8"/>`; }
+  // citizens
+  const byCell = new Map(); boardCits().forEach(c => { if (!byCell.has(c.k)) byCell.set(c.k, []); byCell.get(c.k).push(c); });
+  const pk = S.pick;
+  for (const [k, list] of byCell) {
+    const [c, r] = P(k), x = c*CS+20, y = r*CS+21; list.sort((a, b) => a.p - b.p);
+    const n = Math.min(list.length, 4);
+    if (pk && pk.kind === 'move' && pk.sel && pk.sel.k === k) s += `<circle cx="${x}" cy="${y-1}" r="18" fill="rgba(255,255,255,.3)" stroke="#fff" stroke-width="2" stroke-dasharray="4 3"/>`;
+    list.slice(0, 4).forEach((ct, i) => { const [dx, dy] = SPOTS[n][i]; s += pawn(x+dx, y+dy, SCALE[n], S.players[ct.p].color); });
+    if (list.length > 4) s += `<circle cx="${x+13}" cy="${y-13}" r="7" fill="#120b08" stroke="#f2deb0"/><text x="${x+13}" y="${y-12.5}" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="700" fill="#f2deb0">${list.length}</text>`;
+    if (pk && pk.kind === 'move' && !pk.sel && list.some(ct => ct.p === pk.pi && !pk.moved.has(ct.id))) s += `<rect x="${x-19}" y="${y-20}" width="38" height="38" rx="4" fill="none" stroke="#fff" stroke-width="1.8" stroke-dasharray="3 3"/>`;
+  }
+  if (pk && pk.cells) for (const k of pk.cells) { const [c, r] = P(k); s += `<rect class="hl" x="${c*CS+2}" y="${r*CS+2}" width="36" height="36" rx="4"/>`; }
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) s += `<rect class="hit" data-k="${K(c, r)}" x="${c*CS}" y="${r*CS}" width="40" height="40"/>`;
+  svg.innerHTML = s;
+}
+
+function renderMountain() {
+  const lost = S.players.map(p => p.lost), total = lost.reduce((a,b) => a+b, 0);
+  const plume = S.phase === 'place' ? (S.stirred ? .7 : .25) : 1;
+  document.getElementById('mountain').innerHTML = `<svg viewBox="0 0 92 56" aria-hidden="true">
+    <g opacity="${plume}"><ellipse cx="46" cy="9" rx="${14 + plume*16}" ry="6" fill="#8d847e"/><ellipse cx="36" cy="12" rx="10" ry="4" fill="#a59c95"/><path d="M44 22 C42 16 47 14 45 8" stroke="#a59c95" stroke-width="4" fill="none"/></g>
+    <path d="M2 56 L32 24 L40 27 L46 21 L54 27 L60 24 L90 56Z" fill="#3a2a25" stroke="#d9a43a" stroke-width=".8"/>
+    ${S.phase !== 'place' ? '<path d="M46 22 L42 34 L47 40 L43 56 M47 22 L53 36 L50 46 L56 56" stroke="#ff7a1a" stroke-width="2" fill="none"/>' : S.stirred ? '<path d="M46 22 L43 30" stroke="#ff7a1a" stroke-width="2"/>' : ''}
+    <ellipse cx="46" cy="23" rx="6" ry="1.6" fill="${S.phase === 'place' && !S.stirred ? '#1a100d' : '#ff9a2a'}"/></svg>
+    <div><div class="mt-title">THE MOUNTAIN HOLDS ${total}</div><div class="mt-counts">${S.players.map((p, i) => `<span><i class="dot" style="background:${p.color}"></i>${p.lost}</span>`).join('')}</div></div>`;
+}
+
+function renderHouses() {
+  document.getElementById('houses').innerHTML = S.players.map((p, i) => {
+    const home = homeCount(i), board = boardCits().filter(c => c.p === i).length;
+    return `<div class="house ${i === S.cur && !S.over ? 'cur' : ''}" style="--pc:${p.color}"><span class="sw"></span><span class="nm">${p.gens}<small>${NET.mode !== 'local' && i === NET.mySeat ? 'you' : p.ai ? 'computer' : p.remote || NET.mode === 'guest' ? 'online' : 'player'}<span class="tr"> · ${p.trade}</span></small></span><span class="esc" title="Escaped">${p.escaped}</span>
+      <div class="st"><span>Home <b>${home}</b></span><span>In city <b>${board}</b></span><span>Escaped <b>${p.escaped}</b></span><span>Lost <b>${p.lost}</b></span></div></div>`;
+  }).join('');
+}
+function renderLegend() {
+  document.getElementById('legend').innerHTML = VENTS.map(v => `<div><span class="tile">${tileSVG(v)}</span><span><b>${v.name}</b><span>${v.gloss} · ${S.lavaDeck.filter(x => x === v.id).length} left</span></span></div>`).join('');
+}
+function renderPrompt() {
+  document.getElementById('prompt').innerHTML = S.prompt || '';
+  const slot = document.getElementById('tileSlot');
+  slot.innerHTML = S.tile ? `<span class="tile" title="${S.tile.v.name} lava tile">${tileSVG(S.tile.v)}</span>` : '';
+  const a = document.getElementById('actions'); a.innerHTML = '';
+  if (S.pick && S.pick.kind === 'move') { const b = document.createElement('button'); b.className = 'btn primary'; b.textContent = 'End turn'; b.onclick = () => S.pick.resolve(null); a.appendChild(b); }
+}
+function viewer() {
+  if (NET.mode !== 'local') return NET.mySeat ?? -1;
+  const humans = S.players.map((p, i) => p.ai ? -1 : i).filter(i => i >= 0);
+  if (humans.length === 1) return humans[0];
+  return !S.players[S.cur].ai && !S.handoff ? S.cur : -1;
+}
+function renderHand() {
+  const h = document.getElementById('hand'), title = document.getElementById('handTitle'), v = viewer();
+  if (S.phase !== 'place') {
+    title.textContent = S.phase === 'over' ? 'The day is over' : 'The flight';
+    h.innerHTML = `<div class="hand-note">Hands are gone; only the lava tiles matter now. ${S.lavaDeck.length} tiles remain. Paved roads (dark basalt) let a citizen run 3 squares, everywhere else 2. A citizen with no open path to any gate is lost.</div>`;
+    return;
+  }
+  if (v < 0) { title.textContent = 'Hand hidden'; h.innerHTML = '<div class="hand-note">Waiting for the next player.</div>'; return; }
+  const p = S.players[v]; title.innerHTML = `Hand of the ${p.gens}`;
+  const pk = S.pick && S.pick.kind === 'place' && S.pick.pi === v ? S.pick : null;
+  h.innerHTML = p.hand.map((c, i) => buildingCard(BUILD[c.b], `data-idx="${i}" role="button" tabindex="0" aria-label="${BUILD[c.b].name}"`, pk && pk.sel === i ? 'sel' : (pk && pk.sel != null ? 'dim' : ''))).join('');
+}
+function renderLog() { document.getElementById('log').innerHTML = S.log.map(l => `<li class="${l.ev ? 'ev' : ''}">${l.html}</li>`).join(''); }
+function renderHeader() {
+  document.getElementById('phase').textContent = S.phase === 'place' ? (S.stirred ? 'II · The mountain stirs' : 'I · Settling the city') : S.phase === 'flight' ? 'III · Flight' : 'Finis';
+  document.getElementById('pile').textContent = S.phase === 'place' ? `Draw pile ${S.deck.length}` : `Lava tiles ${S.lavaDeck.length}`;
+}
+function render() { if (NET.mode === 'host' && NET.started) scheduleBroadcast(); renderHeader(); renderMountain(); renderBoard(); renderPrompt(); renderHand(); renderHouses(); renderLegend(); renderLog(); }
+
+/* =============== Input =============== */
+document.getElementById('board').addEventListener('click', e => {
+  const t = e.target.closest('[data-k]'); if (!t || !S) return; const k = t.dataset.k, pk = S.pick;
+  if (pk) {
+    if (pk.kind === 'cell' && pk.cells.has(k)) return pk.resolve(k);
+    if (pk.kind === 'place' && pk.sel != null && pk.cells.has(k)) return pk.resolve({idx:pk.sel, k});
+    if (pk.kind === 'move') {
+      if (pk.sel && pk.cells.has(k)) return pk.resolve({cit:pk.sel, dest:k});
+      const mine = citsAt(k).filter(c => c.p === pk.pi && !pk.moved.has(c.id));
+      if (mine.length) { if (pk.sel && pk.sel.k === k) { pk.sel = null; pk.cells = new Set(); } else { pk.sel = mine[0]; pk.cells = new Set(reachable(k).keys()); } render(); return; }
+      if (pk.sel) { pk.sel = null; pk.cells = new Set(); render(); return; }
+    }
+  }
+  const b = CELLB.get(k);
+  if (b && (!pk || (pk.kind === 'place' && pk.sel == null))) showInfo(buildingCard(b, '', 'big'));
+  else if (GATE_BY_KEY.has(k) && !pk) { const g = GATE_BY_KEY.get(k); showInfo(`<div class="mbox"><h2>${g.name}</h2><p>One of the seven gates in Pompeii's walls. Step onto it to escape the city. It closes for good if lava covers the square just inside it.</p></div>`); }
+});
+function handPick(i) {
+  const pk = S.pick;
+  if (pk && pk.kind === 'place') {
+    if (pk.discard) return pk.resolve({idx:i, k:null});
+    pk.sel = pk.sel === i ? null : i; pk.cells = pk.sel == null ? new Set() : new Set(legalPlacement(BUILD[S.players[pk.pi].hand[i].b]).cells); render();
+  } else { const v = viewer(); if (v >= 0) showInfo(buildingCard(BUILD[S.players[v].hand[i].b], '', 'big')); }
+}
+document.getElementById('hand').addEventListener('click', e => { const c = e.target.closest('.card[data-idx]'); if (c) handPick(+c.dataset.idx); });
+document.getElementById('hand').addEventListener('keydown', e => { const c = e.target.closest('.card[data-idx]'); if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); handPick(+c.dataset.idx); } });
+function showInfo(inner) {
+  const m = document.getElementById('modal'); if (!m.hidden) return;
+  m.innerHTML = `<div class="mbox ${inner.startsWith('<div class="card') ? 'cardbox' : ''}">${inner}<button class="btn" id="mClose">Close</button></div>`; m.hidden = false;
+  const close = () => { m.hidden = true; m.innerHTML = ''; }; document.getElementById('mClose').onclick = close; document.getElementById('mClose').focus();
+}
+
+/* =============== Rules / setup / end =============== */
+const RULES = `<h2>How to play</h2>
+<p>It is AD 79 and Vesuvius is about to erupt. Each player leads a Pompeian household. Get the most family members out through the city's seven gates before the lava buries everything.</p>
+<h3>I · SETTLING THE CITY</h3>
+<ul><li>On your turn, play one building card and place a citizen from home on a free square of that building. If the building is full, place on any free building square.</li>
+<li><b>Kinship:</b> if the building already shelters people, they take in more of your family: place 1 extra citizen per occupied square there (2 at most), on any free building square.</li>
+<li>Then draw a card. A <b>Portent</b> lets you cast one rival citizen into the Mountain; then draw again.</li></ul>
+<h3>II · THE MOUNTAIN STIRS</h3>
+<ul><li>When the first <b>AD LXXIX</b> card is drawn, every household places one lava tile, starting with the one who drew it. Settling then continues.</li></ul>
+<h3>III · FLIGHT</h3>
+<ul><li>The second AD LXXIX card starts the flight. Hands are discarded.</li>
+<li>Each turn, first draw a lava tile (two in a 2-player game) and place it touching lava of the same vent. A vent's first tile covers its crater. Citizens under it are lost.</li>
+<li>Any citizen with no open path to a gate is entombed.</li>
+<li>Then move up to two different citizens: <b>3 squares</b> if they start on a dark basalt road, <b>2</b> otherwise, never through lava. Step onto a gate to escape. A square can hold any number of citizens.</li>
+<li>Households with no one left in the city still place lava every turn.</li></ul>
+<h3>THE END</h3>
+<p>The game ends when nobody is left in the city or the lava tiles run out (anyone still inside is lost). The household with the most escaped wins. Ties go to whoever lost fewer.</p>
+<p style="color:var(--ash);font-size:.85rem">Tip: tap any building on the map to read its card, and tap a gate to see its name.</p>`;
+
+let setupMode = 'local';
+let setupCfg = [{house:0, ai:false, on:true}, {house:1, ai:true, on:true}, {house:2, ai:true, on:true}, {house:3, ai:true, on:false}];
+let onlineCfg = [{house:0, role:'me'}, {house:1, role:'friend'}, {house:2, role:'off'}, {house:3, role:'off'}];
+const ROLE_LABEL = {me:'Me', friend:'Friend', ai:'Computer', off:'Out'};
+
+function setupTabs() {
+  return `<div class="seg tabs" role="tablist">${[['local','This device'],['host','Host online'],['join','Join online']].map(([m, l]) => `<button data-mode="${m}" aria-pressed="${setupMode === m}">${l}</button>`).join('')}</div>`;
+}
+function setupHTML() {
+  let body = '';
+  if (setupMode === 'local') {
+    body = `<p>Everyone plays on this screen. Choose who plays each family.</p>
+    ${setupCfg.map((c, i) => { const h = HOUSES[c.house]; return `<div class="setup-row ${c.on ? '' : 'off'}"><span class="dot" style="background:${h.color}"></span><span><b style="font-family:var(--display)">${h.gens}</b><span style="display:block;color:var(--ash);font-size:.8rem">${h.trade}</span></span>
+      <span class="seg" role="group" aria-label="${h.gens}">${i > 1 ? `<button data-i="${i}" data-v="off" aria-pressed="${!c.on}">Out</button>` : ''}<button data-i="${i}" data-v="human" aria-pressed="${c.on && !c.ai}">Player</button><button data-i="${i}" data-v="ai" aria-pressed="${c.on && c.ai}">Computer</button></span></div>`; }).join('')}
+    <p id="setupErr" class="err"></p>
+    <div class="row-btns"><button class="btn primary" id="startBtn">Begin the day</button><button class="btn" id="setupRules">How to play</button></div>`;
+  } else if (setupMode === 'host') {
+    body = `<p>Each friend plays on their own computer and sees only their own cards. Pick your family and theirs, then create a room and send them the code.</p>
+    ${onlineCfg.map((c, i) => { const h = HOUSES[c.house]; return `<div class="setup-row ${c.role === 'off' ? 'off' : ''}"><span class="dot" style="background:${h.color}"></span><span><b style="font-family:var(--display)">${h.gens}</b></span>
+      <span class="seg" role="group" aria-label="${h.gens}">${['me','friend','ai','off'].filter(r => r !== 'off' || i > 1).map(r => `<button data-oi="${i}" data-r="${r}" aria-pressed="${c.role === r}">${ROLE_LABEL[r]}</button>`).join('')}</span></div>`; }).join('')}
+    <p id="setupErr" class="err"></p>
+    <div class="row-btns"><button class="btn primary" id="hostBtn">Create room</button><button class="btn" id="setupRules">How to play</button></div>`;
+  } else {
+    body = `<p>Ask the host for their room code, then enter it here. Keep this page open for the whole game.</p>
+    <label for="codeIn" class="lbl">Room code</label>
+    <input id="codeIn" class="codein" maxlength="5" autocomplete="off" spellcheck="false" placeholder="ABC12">
+    <p id="setupErr" class="err"></p>
+    <div class="row-btns"><button class="btn primary" id="joinBtn">Join room</button><button class="btn" id="setupRules">How to play</button></div>`;
+  }
+  return `<div class="mbox"><h2>Flight from Vesuvius</h2>${setupTabs()}${body}</div>`;
+}
+function setErr(t) { const e = document.getElementById('setupErr'); if (e) e.textContent = t; }
+function openSetup() {
+  const m = document.getElementById('modal'); m.innerHTML = setupHTML(); m.hidden = false;
+  m.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { setupMode = b.dataset.mode; openSetup(); });
+  m.querySelectorAll('.seg button[data-i]').forEach(b => b.onclick = () => { const c = setupCfg[+b.dataset.i]; if (b.dataset.v === 'off') c.on = false; else { c.on = true; c.ai = b.dataset.v === 'ai'; } openSetup(); });
+  m.querySelectorAll('.seg button[data-oi]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.oi, r = b.dataset.r;
+    if (r === 'me') onlineCfg.forEach((c, j) => { if (c.role === 'me' && j !== i) c.role = 'friend'; });
+    onlineCfg[i].role = r; openSetup();
+  });
+  document.getElementById('setupRules').onclick = () => { m.innerHTML = `<div class="mbox">${RULES}<button class="btn primary" id="back">Back</button></div>`; document.getElementById('back').onclick = openSetup; };
+  const sb = document.getElementById('startBtn');
+  if (sb) sb.onclick = () => {
+    const cfg = setupCfg.filter(c => c.on);
+    if (!cfg.some(c => !c.ai)) { setErr('At least one household needs a player.'); return; }
+    m.hidden = true; m.innerHTML = ''; resetNet(); startGame(cfg);
+  };
+  const hb = document.getElementById('hostBtn');
+  if (hb) hb.onclick = () => {
+    const on = onlineCfg.filter(c => c.role !== 'off');
+    if (on.filter(c => c.role === 'me').length !== 1) { setErr('Choose one family for yourself (Me).'); return; }
+    if (!on.some(c => c.role === 'friend')) { setErr('Choose at least one family for a friend.'); return; }
+    hostRoom(on);
+  };
+  const jb = document.getElementById('joinBtn');
+  if (jb) {
+    const inp = document.getElementById('codeIn'); inp.focus();
+    inp.oninput = () => { inp.value = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+    inp.onkeydown = e => { if (e.key === 'Enter') jb.click(); };
+    jb.onclick = () => { const code = inp.value.trim(); if (code.length !== 5) { setErr('Room codes have 5 letters and numbers.'); return; } joinRoom(code); };
+  }
+}
+
+/* =============== Online play (PeerJS, browser to browser) =============== */
+const PEER_PREFIX = 'flight-vesuvius-';
+function makeCode() { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 5; i++) s += A[Math.floor(Math.random() * A.length)]; return s; }
+function resetNet() {
+  if (NET.mode === 'host' && NET.conns) for (const [, c] of NET.conns) { try { c.send({t:'closed'}); } catch (e) {} }
+  if (NET.peer) { const p = NET.peer; setTimeout(() => { try { p.destroy(); } catch (e) {} }, 300); }
+  NET = {mode:'local'};
+}
+function sendTo(seat, msg) { const c = NET.conns.get(seat); if (c && c.open) c.send(msg); }
+let bcastTimer = null;
+function scheduleBroadcast() { if (bcastTimer == null) bcastTimer = setTimeout(flushBroadcast, 0); }
+function flushBroadcast() {
+  clearTimeout(bcastTimer); bcastTimer = null;
+  if (NET.mode !== 'host' || !S) return;
+  for (const [seat, conn] of NET.conns) if (conn.open) conn.send({t:'state', s:snapshot(seat)});
+}
+function snapshot(seat) {
+  return {players:S.players.map((p, i) => ({...p, hand: i === seat ? p.hand : []})), cits:S.cits, deckN:S.deck.length,
+    lavaDeck:[...S.lavaDeck].sort(), lava:[...S.lava], phase:S.phase, stirred:S.stirred, cur:S.cur, tile:S.tile, fresh:S.fresh, log:S.log, over:S.over};
+}
+function noPeerLib() { if (window.Peer) return false; setErr('Online play could not load its connection library. Check your internet connection and reload the page.'); return true; }
+
+function hostRoom(seats) {
+  if (noPeerLib()) return;
+  resetNet();
+  const code = makeCode();
+  NET = {mode:'host', code, seats, conns:new Map(), pending:new Map(), pendingSpec:new Map(), acks:new Map(), started:false, mySeat:seats.findIndex(c => c.role === 'me')};
+  const peer = new Peer(PEER_PREFIX + code); NET.peer = peer;
+  renderLobby('Opening the room…');
+  peer.on('open', () => renderLobby());
+  peer.on('error', e => { if (NET.peer !== peer) return; if (e.type === 'unavailable-id') { hostRoom(seats); return; } renderLobby(`Connection problem (${e.type}). Close this and try again.`); });
+  peer.on('disconnected', () => { if (NET.peer === peer && !peer.destroyed) try { peer.reconnect(); } catch (e) {} });
+  peer.on('connection', conn => {
+    conn.on('open', () => {
+      if (NET.peer !== peer) return;
+      const free = NET.seats.findIndex((c, i) => c.role === 'friend' && !NET.conns.has(i));
+      if (free < 0 || NET.started) { conn.send({t:'full'}); setTimeout(() => conn.close(), 500); return; }
+      conn.seat = free; NET.conns.set(free, conn);
+      conn.send({t:'welcome', seat:free, gens:HOUSES[NET.seats[free].house].gens});
+      renderLobby();
+    });
+    conn.on('data', d => onHostData(conn.seat, d));
+    conn.on('close', () => onGuestLeft(conn));
+  });
+}
+function renderLobby(note) {
+  if (NET.mode !== 'host' || NET.started) return;
+  const m = document.getElementById('modal'); const ready = NET.seats.every((c, i) => c.role !== 'friend' || NET.conns.has(i));
+  const open = NET.peer && NET.peer.open;
+  m.innerHTML = `<div class="mbox"><h2>Your room</h2>
+    ${open ? `<p>Send this code to your friend. They open this same page, choose <b>Join online</b> and enter it.</p><div class="roomcode" aria-label="Room code">${NET.code}</div><div class="row-btns"><button class="btn" id="copyCode">Copy code</button></div>` : `<p>${note || 'Opening the room…'}</p>`}
+    ${open && note ? `<p class="err">${note}</p>` : ''}
+    ${NET.seats.map((c, i) => { const h = HOUSES[c.house]; const st = c.role === 'me' ? 'You' : c.role === 'ai' ? 'Computer' : NET.conns.has(i) ? '<b style="color:#7fe0b0">Connected</b>' : 'Waiting for a friend…';
+      return `<div class="setup-row"><span class="dot" style="background:${h.color}"></span><b style="font-family:var(--display)">${h.gens}</b><span>${st}</span></div>`; }).join('')}
+    <div class="row-btns" style="margin-top:14px"><button class="btn primary" id="beginOnline" ${ready && open ? '' : 'disabled'}>Begin the day</button><button class="btn" id="cancelRoom">Cancel</button></div></div>`;
+  m.hidden = false;
+  const cc = document.getElementById('copyCode'); if (cc) cc.onclick = () => { navigator.clipboard.writeText(NET.code).then(() => cc.textContent = 'Copied', () => cc.textContent = 'Copy failed: type it instead'); };
+  document.getElementById('cancelRoom').onclick = () => { resetNet(); openSetup(); };
+  document.getElementById('beginOnline').onclick = () => {
+    NET.started = true; m.hidden = true; m.innerHTML = '';
+    startGame(NET.seats.map(c => ({house:c.house, ai:c.role === 'ai', remote:c.role === 'friend'})));
+  };
+}
+function onHostData(seat, d) {
+  if (seat == null || !d) return;
+  if (d.t === 'answer') { const r = NET.pending.get(seat); if (r) { NET.pending.delete(seat); NET.pendingSpec.delete(seat); r(d.v); } }
+  else if (d.t === 'ack') { const a = NET.acks.get(seat); if (a) { NET.acks.delete(seat); a(); } }
+}
+function onGuestLeft(conn) {
+  if (NET.mode !== 'host' || conn.seat == null || NET.conns.get(conn.seat) !== conn) return;
+  const seat = conn.seat; NET.conns.delete(seat);
+  if (!NET.started) { renderLobby(); return; }
+  const p = S.players[seat]; p.remote = false; p.ai = true;
+  log(`The ${hn(seat)} lost their connection. The computer takes over their household.`, true);
+  const spec = NET.pendingSpec.get(seat), r = NET.pending.get(seat);
+  if (r) {
+    NET.pending.delete(seat); NET.pendingSpec.delete(seat);
+    if (spec.kind === 'cell') r([...spec.cells][0]);
+    else if (spec.kind === 'place') r(spec.discard ? {idx:0, k:null} : (() => { const c = aiPlacement(seat); return {idx:c.idx, k:c.k}; })());
+    else r(null);
+  }
+  const a = NET.acks.get(seat); if (a) { NET.acks.delete(seat); a(); }
+  render();
+}
+
+function joinRoom(code) {
+  if (noPeerLib()) return;
+  resetNet();
+  NET = {mode:'guest', mySeat:null, code};
+  const peer = new Peer(); NET.peer = peer;
+  setErr('Connecting…');
+  const fail = t => { if (NET.peer !== peer) return; resetNet(); setupMode = 'join'; openSetup(); setErr(t); };
+  peer.on('error', e => fail(e.type === 'peer-unavailable' ? `No open room with code ${code}. Check the code and that the host's page is still open.` : `Could not connect (${e.type}). Try again.`));
+  peer.on('open', () => {
+    const conn = peer.connect(PEER_PREFIX + code, {reliable:true, serialization:'json'}); NET.host = conn;
+    conn.on('data', onGuestData);
+    conn.on('close', () => { if (NET.host !== conn) return; const was = NET.mySeat != null; resetNet(); if (was) showInfo(`<h2>Disconnected</h2><p>The connection to the host was lost. Ask them to create a new room, then join again.</p>`); });
+    setTimeout(() => { if (NET.host === conn && NET.mySeat == null) fail(`The room ${code} did not answer. Check the code and try again.`); }, 12000);
+  });
+}
+function onGuestData(d) {
+  const m = document.getElementById('modal');
+  if (d.t === 'welcome') {
+    NET.mySeat = d.seat;
+    m.innerHTML = `<div class="mbox"><h2>You are the ${d.gens}</h2><p>You're in the room. The game starts when the host begins the day. Keep this page open.</p><button class="btn" id="leave">Leave room</button></div>`; m.hidden = false;
+    document.getElementById('leave').onclick = () => { resetNet(); openSetup(); };
+  } else if (d.t === 'full') {
+    resetNet(); setupMode = 'join'; openSetup(); setErr('That room is full or the game has already started.');
+  } else if (d.t === 'state') {
+    if (!NET.inGame) { NET.inGame = true; m.hidden = true; m.innerHTML = ''; }
+    const pk = S && S.pick, s = d.s;
+    S = {...s, deck:Array(s.deckN).fill(0), lava:new Map(s.lava), pick:pk || null};
+    S.prompt = pk ? pk.prompt : s.over ? '' : S.cur === NET.mySeat ? 'Your turn…' : `The ${hn(S.cur)} are taking their turn.`;
+    render();
+  } else if (d.t === 'pick') {
+    const sp = d.spec;
+    S.pick = {...sp, cells:new Set(sp.cells), moved:new Set(sp.moved), sel:null,
+      resolve: v => { S.pick = null; NET.host.send({t:'answer', v: sp.kind === 'move' && v ? {cid:v.cit.id, dest:v.dest} : v}); S.prompt = 'Sent. Waiting…'; render(); }};
+    S.prompt = sp.prompt; render();
+  } else if (d.t === 'card') {
+    const mine = d.pi === NET.mySeat;
+    showLocalCard(d.html, mine ? 'Continue' : 'Close', mine ? () => NET.host.send({t:'ack'}) : null);
+  } else if (d.t === 'over') {
+    gameOver();
+  } else if (d.t === 'closed') {
+    NET.host = null; resetNet(); showInfo(`<h2>The host closed the room</h2><p>Ask them for a new code to play again.</p>`);
+  }
+}
+function startGame(cfg) { RUN++; S = newState(cfg); render(); gameLoop().catch(e => console.error(e)); }
+function gameOver() {
+  if (NET.mode === 'host') { flushBroadcast(); for (const [, conn] of NET.conns) conn.send({t:'over'}); }
+  const order = S.players.map((p, i) => ({p, i})).sort((a, b) => b.p.escaped - a.p.escaped || a.p.lost - b.p.lost);
+  const w = order[0];
+  const tie = order[1] && order[1].p.escaped === w.p.escaped && order[1].p.lost === w.p.lost;
+  setPrompt(tie ? 'The day ends in a tie.' : `The <b>${w.p.gens}</b> save the most of their household.`);
+  showInfo(`<h2>${tie ? 'A shared survival' : `The ${w.p.gens} endure`}</h2>
+    <p>${tie ? 'Two households brought out the same number of people.' : `Of the households of Pompeii, the ${hn(w.i)} brought the most of their people through the gates.`}</p>
+    ${order.map((o, r) => `<div class="result"><span class="rk">${['I','II','III','IV'][r]}</span><span><span class="dot" style="background:${o.p.color}"></span> <b>${o.p.gens}</b> <span style="color:var(--ash);font-size:.85rem">${o.p.ai ? 'computer' : 'player'}</span></span><span>${o.p.escaped} escaped · ${o.p.lost} lost</span></div>`).join('')}
+    <div style="margin-top:14px"><button class="btn primary" id="again">Play again</button></div>`);
+  const a = document.getElementById('again'); if (a) a.onclick = () => { document.getElementById('modal').hidden = true; resetNet(); openSetup(); };
+}
+document.getElementById('rulesBtn').onclick = () => { const m = document.getElementById('modal'); if (!m.hidden) return; showInfo(RULES); };
+document.getElementById('newBtn').onclick = () => { const m = document.getElementById('modal'); m.hidden = true; m.innerHTML = ''; RUN++; resetNet(); openSetup(); };
+
+/* Preview board behind the setup screen */
+S = newState(setupCfg.filter(c => c.on));
+S.prompt = 'Choose your households to begin.';
+render();
+openSetup();
+</script>
+</body>
+</html>
